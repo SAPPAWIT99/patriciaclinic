@@ -488,6 +488,34 @@ function renderTodayOwnerSummary() {
     </section>`;
 }
 
+function renderClinicShowcase() {
+  const photos = [
+    { src: "assets/clinic-front.jpg", title: "หน้าคลินิก", note: "แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม" },
+    { src: "assets/reception-close.jpg", title: "เคาน์เตอร์ต้อนรับ", note: "พื้นที่บริการลูกค้าและลงทะเบียน" },
+    { src: "assets/lobby-wide.jpg", title: "โถงรับรอง", note: "สะอาด โปร่ง โล่ง และเป็นส่วนตัว" },
+    { src: "assets/lobby-deep.jpg", title: "มุมพักคอย", note: "บรรยากาศอบอุ่นก่อนเข้ารับบริการ" }
+  ];
+  return `
+    <section class="clinic-showcase">
+      <div class="showcase-copy">
+        <span>แพทริเซียคลินิก</span>
+        <h2>แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม</h2>
+        <p>พื้นที่ต้อนรับและให้บริการที่สะอาด สบายตา พร้อมระบบจัดการข้อมูลสำหรับการดูแลลูกค้าอย่างเป็นระเบียบ</p>
+      </div>
+      <div class="showcase-grid">
+        ${photos.map((photo, index) => `
+          <figure class="showcase-card ${index === 0 ? "wide" : ""}">
+            <img src="${photo.src}" alt="${photo.title}">
+            <figcaption>
+              <strong>${photo.title}</strong>
+              <span>${photo.note}</span>
+            </figcaption>
+          </figure>
+        `).join("")}
+      </div>
+    </section>`;
+}
+
 function renderDashboard() {
   const waiting = state.queue.filter((item) => item.status !== "ชำระเงิน").length;
   const todayApps = state.appointments.filter((item) => item.date === todayIso).length;
@@ -499,11 +527,12 @@ function renderDashboard() {
   return `
     <section class="hero-strip">
       <div>
-        <h2>ศูนย์ควบคุม PatriciaClinic</h2>
+        <h2>แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม</h2>
         <p>ติดตามคิว นัดหมาย เวชระเบียน รายรับ และสต็อก ในหน้าจอเดียว</p>
       </div>
       <button data-view="queue">${icons.queue}จัดการคิว</button>
     </section>
+    ${renderClinicShowcase()}
     <section class="dashboard-controls panel">
       <div>
         <h2>สรุปการเงิน ${periodLabel(dashboardPeriod)}</h2>
@@ -1227,7 +1256,7 @@ function openBuyCourse(patientId) {
           </div>
           <div class="field full">
             <label>ผู้ขาย</label>
-            <input name="seller" value="PatriciaClinic">
+            <input name="seller" value="แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม">
           </div>
           <div class="field full">
             <label>วันที่ซื้อ/เริ่มคอร์ส</label>
@@ -1375,8 +1404,8 @@ function renderReceipt(patient, purchased, bill) {
     <section class="receipt">
       <div class="receipt-top">
         <div>
-          <div class="receipt-logo">Patricia Clinic</div>
-          <h2>แพทริเซีย คลินิก</h2>
+          <div class="receipt-logo">แพทริเซียคลินิก</div>
+          <h2>แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม</h2>
           <p>300/8 หมู่ 9 ต.บ้านแหลม<br>อ.บ้านแหลม จ.เพชรบุรี 76110<br><strong>มือถือ: 092-8355559</strong></p>
         </div>
         <div class="receipt-box">
