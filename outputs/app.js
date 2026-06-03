@@ -29,6 +29,7 @@ const icons = {
 
 const menu = [
   ["dashboard", "แดชบอร์ด", "ภาพรวมการให้บริการ"],
+  ["ownerSummary", "ภาพรวมวันนี้", "สรุปบริการ คอร์ส และยอดเงินประจำวัน"],
   ["queue", "คิวตรวจ", "จัดลำดับผู้รับบริการ"],
   ["appointments", "นัดหมาย", "ตารางแพทย์และห้องตรวจ"],
   ["patients", "ลูกค้า", "ศูนย์กลางข้อมูล ประวัติรักษา และคอร์ส"],
@@ -42,6 +43,7 @@ const menu = [
 
 const menuIcons = {
   dashboard: icons.dashboard,
+  ownerSummary: icons.chart,
   queue: icons.queue,
   appointments: icons.calendar,
   patients: icons.users,
@@ -503,7 +505,6 @@ function renderDashboard() {
       </div>
       <button data-view="queue">${icons.queue}จัดการคิว</button>
     </section>
-    ${renderTodayOwnerSummary()}
     <section class="dashboard-controls panel">
       <div>
         <h2>สรุปการเงิน ${periodLabel(dashboardPeriod)}</h2>
@@ -1481,6 +1482,7 @@ function render() {
   setHeader();
   renderNav();
   if (currentView === "dashboard") contentEl.innerHTML = renderDashboard();
+  else if (currentView === "ownerSummary") contentEl.innerHTML = renderTodayOwnerSummary();
   else if (currentView === "patients") contentEl.innerHTML = renderPatientsCenter();
   else if (currentView === "financeSummary") contentEl.innerHTML = renderFinanceSummary();
   else if (currentView === "courses") contentEl.innerHTML = renderServicesAndCourses();
@@ -1565,7 +1567,7 @@ contentEl.addEventListener("change", (event) => {
 
 document.querySelector("#globalSearch").addEventListener("input", (event) => {
   searchTerm = event.target.value.trim();
-  if (currentView === "dashboard" || currentView === "financeSummary") currentView = "patients";
+  if (currentView === "dashboard" || currentView === "ownerSummary" || currentView === "financeSummary") currentView = "patients";
   render();
 });
 
