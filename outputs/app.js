@@ -1,6 +1,12 @@
 const storageKey = "patriciaclinic-state-v1";
 const authKey = "patriciaclinic-auth-v1";
 const validUser = { username: "Patricia", password: "p5559" };
+const supabaseConfig = {
+  url: "",
+  anonKey: "",
+  table: "app_state",
+  recordId: "patriciaclinic-main"
+};
 
 const icons = {
   dashboard: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 13h8V3H3v10Zm10 8h8V3h-8v18ZM3 21h8v-6H3v6Z"/></svg>',
@@ -132,6 +138,69 @@ function loadState() {
 
 function saveState() {
   localStorage.setItem(storageKey, JSON.stringify(state));
+  queueSupabaseSave();
+}
+
+function hasSupabaseConfig() {
+  return Boolean(supabaseConfig.url && supabaseConfig.anonKey);
+}
+
+function supabaseHeaders() {
+  return {
+    apikey: supabaseConfig.anonKey,
+    Authorization: `Bearer ${supabaseConfig.anonKey}`,
+    "Content-Type": "application/json"
+  };
+}
+
+async function loadStateFromSupabase() {
+  if (!hasSupabaseConfig()) return null;
+  const endpoint = `${supabaseConfig.url}/rest/v1/${supabaseConfig.table}?id=eq.${encodeURIComponent(supabaseConfig.recordId)}&select=data`;
+  const response = await fetch(endpoint, { headers: supabaseHeaders() });
+  if (!response.ok) throw new Error(`Supabase load failed: ${response.status}`);
+  const rows = await response.json();
+  return rows[0]?.data || null;
+}
+
+async function saveStateToSupabase() {
+  if (!hasSupabaseConfig()) return;
+  const endpoint = `${supabaseConfig.url}/rest/v1/${supabaseConfig.table}?on_conflict=id`;
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { ...supabaseHeaders(), Prefer: "resolution=merge-duplicates" },
+    body: JSON.stringify({
+      id: supabaseConfig.recordId,
+      data: state,
+      updated_at: new Date().toISOString()
+    })
+  });
+  if (!response.ok) throw new Error(`Supabase save failed: ${response.status}`);
+}
+
+let supabaseSaveTimer = null;
+
+function queueSupabaseSave() {
+  if (!hasSupabaseConfig()) return;
+  clearTimeout(supabaseSaveTimer);
+  supabaseSaveTimer = setTimeout(() => {
+    saveStateToSupabase().catch((error) => console.warn(error.message));
+  }, 450);
+}
+
+async function hydrateStateFromSupabase() {
+  if (!hasSupabaseConfig()) return;
+  try {
+    const remoteState = await loadStateFromSupabase();
+    if (remoteState) {
+      state = { ...structuredClone(seedState), ...remoteState };
+      localStorage.setItem(storageKey, JSON.stringify(state));
+      render();
+      return;
+    }
+    await saveStateToSupabase();
+  } catch (error) {
+    console.warn(error.message);
+  }
 }
 
 function isLoggedIn() {
@@ -1435,3 +1504,4 @@ logoutButton.addEventListener("click", () => {
 
 setAuthView();
 render();
+hydrateStateFromSupabase();
