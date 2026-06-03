@@ -393,6 +393,100 @@ function renderPaymentDonut(bills) {
     </div>`;
 }
 
+function courseUsageRowsForDate(dateString) {
+  return state.courses.flatMap((course) => {
+    const usageLog = Array.isArray(course.usageLog) ? course.usageLog : [];
+    const rows = usageLog
+      .filter((log) => log.date === dateString)
+      .map((log) => ({
+        patient: course.patient,
+        course: course.course,
+        service: course.service,
+        count: Number(log.count || 0)
+      }));
+    if (!rows.length && course.lastUsedDate === dateString && Number(course.lastUsedCount || 0) > 0) {
+      rows.push({
+        patient: course.patient,
+        course: course.course,
+        service: course.service,
+        count: Number(course.lastUsedCount || 0)
+      });
+    }
+    return rows;
+  });
+}
+
+function renderTodayOwnerSummary() {
+  const todayBills = state.billing.filter((item) => item.date === todayIso);
+  const paidBills = todayBills.filter((item) => item.status === "ชำระแล้ว" || Number(item.paidAmount || 0) > 0);
+  const todayIncome = paidBills.reduce((sum, item) => sum + Number(item.paidAmount || item.amount || 0), 0);
+  const todayPending = todayBills.reduce((sum, item) => sum + Math.max(Number(item.amount || 0) - Number(item.paidAmount || 0), 0), 0);
+  const todayRecords = state.records.filter((item) => item.date === todayIso);
+  const serviceCount = new Set([
+    ...todayRecords.map((item) => item.patient || recordFullName(item)),
+    ...todayBills.map((item) => item.patient)
+  ].filter(Boolean)).size;
+  const courseUsage = courseUsageRowsForDate(todayIso);
+  const courseUseCount = courseUsage.reduce((sum, item) => sum + item.count, 0);
+  const soldCourses = todayBills.flatMap((bill) => String(bill.item || "").split(",").map((item) => item.trim()).filter(Boolean));
+  const payment = paymentBreakdown(todayBills);
+  const topPayment = payment.rows.sort((a, b) => b.amount - a.amount)[0];
+  const latestBills = todayBills.slice(0, 4);
+  const latestUsage = courseUsage.slice(0, 4);
+
+  return `
+    <section class="owner-summary">
+      <div class="owner-summary-head">
+        <div>
+          <p class="eyebrow">สรุปสำหรับเจ้าของคลินิก</p>
+          <h2>ภาพรวมวันนี้</h2>
+          <span class="muted">${new Date(`${todayIso}T00:00:00`).toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+        </div>
+        <button data-view="financeSummary" class="secondary">${icons.chart}ดูรายงานเต็ม</button>
+      </div>
+      <div class="owner-kpi-grid">
+        <article class="owner-kpi service">
+          <span>การให้บริการวันนี้</span>
+          <strong>${serviceCount}</strong>
+          <small>${todayRecords.length} เวชระเบียน · ${todayBills.length} ใบเสร็จ</small>
+        </article>
+        <article class="owner-kpi course">
+          <span>ตัดคอร์สวันนี้</span>
+          <strong>${courseUseCount}</strong>
+          <small>${courseUsage.length} รายการใช้งานคอร์ส</small>
+        </article>
+        <article class="owner-kpi money">
+          <span>ยอดเงินวันนี้</span>
+          <strong>${money(todayIncome)}</strong>
+          <small>${todayPending ? `ค้างชำระ ${money(todayPending)}` : "ชำระครบ"}</small>
+        </article>
+        <article class="owner-kpi pay">
+          <span>ช่องทางหลัก</span>
+          <strong>${topPayment ? escapeHtml(topPayment.method) : "-"}</strong>
+          <small>${topPayment ? `${topPayment.percent}% · ${money(topPayment.amount)}` : "ยังไม่มีการชำระเงิน"}</small>
+        </article>
+      </div>
+      <div class="owner-detail-grid">
+        <article>
+          <div class="mini-head"><h3>สรุปการให้บริการ</h3><span>${serviceCount} ลูกค้า</span></div>
+          ${todayRecords.length ? todayRecords.slice(0, 4).map((record) => `<p><strong>${escapeHtml(record.patient || recordFullName(record))}</strong><span>${escapeHtml(record.doctor || "-")}</span></p>`).join("") : "<p class='muted'>ยังไม่มีเวชระเบียนวันนี้</p>"}
+        </article>
+        <article>
+          <div class="mini-head"><h3>สรุปคอร์สวันนี้</h3><span>${courseUseCount} ครั้ง</span></div>
+          ${latestUsage.length ? latestUsage.map((item) => `<p><strong>${escapeHtml(item.course)}</strong><span>${escapeHtml(item.patient)} · ตัด ${item.count} ครั้ง</span></p>`).join("") : "<p class='muted'>ยังไม่มีการตัดคอร์สวันนี้</p>"}
+        </article>
+        <article>
+          <div class="mini-head"><h3>สรุปยอดขายคอร์ส</h3><span>${soldCourses.length} รายการ</span></div>
+          ${soldCourses.length ? soldCourses.slice(0, 4).map((item) => `<p><strong>${escapeHtml(item)}</strong><span>ขายวันนี้</span></p>`).join("") : "<p class='muted'>ยังไม่มีการขายคอร์สวันนี้</p>"}
+        </article>
+        <article>
+          <div class="mini-head"><h3>สรุปยอดเงิน</h3><span>${todayBills.length} ใบเสร็จ</span></div>
+          ${latestBills.length ? latestBills.map((bill) => `<p><strong>${escapeHtml(bill.patient)}</strong><span>${money(Number(bill.paidAmount || bill.amount || 0))} · ${escapeHtml(bill.paymentMethod || "ไม่ระบุ")}</span></p>`).join("") : "<p class='muted'>ยังไม่มีรายการเงินวันนี้</p>"}
+        </article>
+      </div>
+    </section>`;
+}
+
 function renderDashboard() {
   const waiting = state.queue.filter((item) => item.status !== "ชำระเงิน").length;
   const todayApps = state.appointments.filter((item) => item.date === todayIso).length;
@@ -409,6 +503,7 @@ function renderDashboard() {
       </div>
       <button data-view="queue">${icons.queue}จัดการคิว</button>
     </section>
+    ${renderTodayOwnerSummary()}
     <section class="dashboard-controls panel">
       <div>
         <h2>สรุปการเงิน ${periodLabel(dashboardPeriod)}</h2>
@@ -1050,10 +1145,14 @@ function openDeductCourse(id) {
     state.courses = state.courses.map((row) => {
       if (row.id !== id) return row;
       const nextUsed = Math.min(Number(row.used || 0) + safeCount, Number(row.total || 0));
+      const usedDate = String(form.get("usedDate") || todayIso);
+      const usageLog = Array.isArray(row.usageLog) ? row.usageLog : [];
       return {
         ...row,
         used: nextUsed,
-        lastUsedDate: String(form.get("usedDate") || todayIso),
+        lastUsedDate: usedDate,
+        lastUsedCount: safeCount,
+        usageLog: [...usageLog, { date: usedDate, count: safeCount }],
         status: nextUsed >= Number(row.total || 0) ? "ใช้ครบแล้ว" : row.status === "พักคอร์ส" ? "พักคอร์ส" : "ใช้งานอยู่"
       };
     });

@@ -1204,6 +1204,118 @@ h1 {
   gap: 12px;
 }
 
+.owner-summary {
+  display: grid;
+  gap: 16px;
+  margin: 16px 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(20, 36, 52, 0.08);
+}
+
+.owner-summary-head,
+.mini-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.owner-summary-head h2 {
+  margin: 2px 0 4px;
+  font-size: 24px;
+}
+
+.owner-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.owner-kpi {
+  display: grid;
+  gap: 8px;
+  min-height: 128px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbfa;
+}
+
+.owner-kpi span,
+.owner-kpi small,
+.mini-head span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.owner-kpi strong {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.owner-kpi.service {
+  border-left: 6px solid #0f9b67;
+}
+
+.owner-kpi.course {
+  border-left: 6px solid #f5b95f;
+}
+
+.owner-kpi.money {
+  border-left: 6px solid #2f7d77;
+}
+
+.owner-kpi.pay {
+  border-left: 6px solid #3d6f99;
+}
+
+.owner-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.owner-detail-grid article {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 170px;
+  padding: 14px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+}
+
+.owner-detail-grid h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.owner-detail-grid p {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 8px 0;
+  border-top: 1px solid #e5edf3;
+}
+
+.owner-detail-grid p:first-of-type {
+  border-top: 0;
+}
+
+.owner-detail-grid strong {
+  font-size: 14px;
+}
+
+.owner-detail-grid p span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .dashboard-controls h2 {
   margin: 0 0 4px;
   font-size: 18px;
@@ -1838,11 +1950,14 @@ menu {
   }
 
   .stats,
-  .two-col {
+  .two-col,
+  .owner-kpi-grid,
+  .owner-detail-grid {
     grid-template-columns: 1fr;
   }
 
   .dashboard-controls,
+  .owner-summary-head,
   .payment-donut-panel {
     grid-template-columns: 1fr;
     flex-direction: column;
