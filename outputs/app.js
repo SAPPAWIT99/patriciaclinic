@@ -498,6 +498,9 @@ function renderClinicShowcase() {
   return `
     <section class="clinic-showcase">
       <div class="showcase-copy">
+        <div class="premium-logo-frame">
+          <img src="assets/logo.jpg" alt="แพทริเซียคลินิก">
+        </div>
         <span>แพทริเซียคลินิก</span>
         <h2>แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม</h2>
         <p>พื้นที่ต้อนรับและให้บริการที่สะอาด สบายตา พร้อมระบบจัดการข้อมูลสำหรับการดูแลลูกค้าอย่างเป็นระเบียบ</p>
