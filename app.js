@@ -374,7 +374,7 @@ function paymentBreakdown(bills) {
 
 function renderPaymentDonut(bills) {
   const breakdown = paymentBreakdown(bills);
-  const colors = ["#0f9b67", "#f5b95f", "#3d6f99", "#d97057", "#8d6ccf"];
+  const colors = ["#2563eb", "#38bdf8", "#0ea5e9", "#60a5fa", "#93c5fd"];
   let offset = 25;
   const segments = breakdown.rows.map((row, index) => {
     const dash = `${row.percent} ${100 - row.percent}`;
@@ -385,7 +385,7 @@ function renderPaymentDonut(bills) {
   return `
     <div class="donut-wrap">
       <svg class="donut" viewBox="0 0 36 36" role="img" aria-label="ช่องทางการชำระเงิน">
-        <circle r="15.915" cx="18" cy="18" fill="transparent" stroke="#edf3f1" stroke-width="6"></circle>
+        <circle r="15.915" cx="18" cy="18" fill="transparent" stroke="#eff6ff" stroke-width="6"></circle>
         ${segments}
       </svg>
       <div class="donut-center"><strong>${breakdown.total ? "100%" : "0%"}</strong><span>${money(breakdown.total)}</span></div>
@@ -440,7 +440,6 @@ function renderTodayOwnerSummary() {
     <section class="owner-summary">
       <div class="owner-summary-head">
         <div>
-          <p class="eyebrow">สรุปสำหรับเจ้าของคลินิก</p>
           <h2>ภาพรวมวันนี้</h2>
           <span class="muted">${new Date(`${todayIso}T00:00:00`).toLocaleDateString("th-TH", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
         </div>
