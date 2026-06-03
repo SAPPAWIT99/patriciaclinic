@@ -1404,6 +1404,7 @@ function renderReceipt(patient, purchased, bill) {
     <section class="receipt">
       <div class="receipt-top">
         <div>
+          <img class="receipt-logo-image" src="assets/logo.jpg" alt="แพทริเซียคลินิก">
           <div class="receipt-logo">แพทริเซียคลินิก</div>
           <h2>แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม</h2>
           <p>300/8 หมู่ 9 ต.บ้านแหลม<br>อ.บ้านแหลม จ.เพชรบุรี 76110<br><strong>มือถือ: 092-8355559</strong></p>
@@ -1460,7 +1461,7 @@ function inlineReceiptStyles(source, target) {
     "align-items", "background", "border", "border-bottom", "border-radius", "box-sizing", "color",
     "display", "font-family", "font-size", "font-weight", "gap", "grid-template-columns", "height",
     "justify-content", "line-height", "margin", "margin-bottom", "margin-left", "margin-top",
-    "padding", "padding-bottom", "padding-top", "text-align", "width"
+    "object-fit", "padding", "padding-bottom", "padding-top", "text-align", "width"
   ];
   target.setAttribute("style", properties.map((name) => `${name}:${computed.getPropertyValue(name)}`).join(";"));
   [...source.children].forEach((child, index) => inlineReceiptStyles(child, target.children[index]));
