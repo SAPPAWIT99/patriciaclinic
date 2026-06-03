@@ -2,8 +2,8 @@ const storageKey = "patriciaclinic-state-v1";
 const authKey = "patriciaclinic-auth-v1";
 const validUser = { username: "Patricia", password: "p5559" };
 const supabaseConfig = {
-  url: "",
-  anonKey: "",
+  url: "https://kdprrzocyjhrgtjajcom.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkcHJyem9jeWpocmd0amFqY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0OTc5NDYsImV4cCI6MjA5NjA3Mzk0Nn0.cPvTYtehUmlOnYcC2uHT3UUL8GZ99_vgYMR69yZO82Q",
   table: "app_state",
   recordId: "patriciaclinic-main"
 };
