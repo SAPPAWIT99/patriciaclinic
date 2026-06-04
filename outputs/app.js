@@ -60,6 +60,7 @@ const today = new Date();
 const todayIso = today.toISOString().slice(0, 10);
 
 const seedState = {
+  deletedServiceCatalogIds: ["SV-001", "SV-002", "SV-003"],
   patients: [
     { id: "P-1001", name: "ปาริณา ศรีสุข", phone: "081-234-7788", age: 34, allergy: "ไม่มี", lastVisit: todayIso, tag: "ติดตามผล" },
     { id: "P-1002", name: "กิตติพงศ์ วัฒนา", phone: "089-777-2401", age: 46, allergy: "Penicillin", lastVisit: "2026-06-01", tag: "เรื้อรัง" },
@@ -88,9 +89,6 @@ const seedState = {
     { id: "C-9003", patient: "ธนา เมธากุล", course: "Acne Clear 5 ครั้ง", service: "รักษาสิว", total: 5, used: 1, startDate: todayIso, nextDate: "2026-06-16", status: "ใช้งานอยู่" }
   ],
   serviceCatalog: [
-    { id: "SV-001", name: "จี้กระ", category: "ทรีทเม้นท์/เครื่อง", price: 1999, sessions: 1, status: "เปิดขาย" },
-    { id: "SV-002", name: "จี้แมงมุม (เหมา)", category: "ทรีทเม้นท์/เครื่อง", price: 1599, sessions: 1, status: "เปิดขาย" },
-    { id: "SV-003", name: "จี้แมงมุม", category: "ทรีทเม้นท์/เครื่อง", price: 200, sessions: 1, status: "เปิดขาย" },
     { id: "SV-004", name: "Aestox กราม70u + ลิฟท์กรอบ", category: "Botox", price: 7900, sessions: 1, status: "เปิดขาย" },
     { id: "SV-005", name: "Bellanium 3 cc + Nabota 50u + Chanel", category: "Filler", price: 25900, sessions: 1, status: "เปิดขาย" },
     { id: "SV-006", name: "เมโสหน้าใส", category: "เมโส", price: 1500, sessions: 1, status: "เปิดขาย" },
@@ -129,13 +127,26 @@ const loginForm = document.querySelector("#loginForm");
 const loginError = document.querySelector("#loginError");
 const logoutButton = document.querySelector("#logoutButton");
 
+function normalizeState(data = {}) {
+  const next = { ...structuredClone(seedState), ...data };
+  const deletedIds = new Set([
+    ...seedState.deletedServiceCatalogIds,
+    ...(Array.isArray(next.deletedServiceCatalogIds) ? next.deletedServiceCatalogIds : [])
+  ]);
+  next.deletedServiceCatalogIds = [...deletedIds];
+  next.serviceCatalog = Array.isArray(next.serviceCatalog)
+    ? next.serviceCatalog.filter((item) => !deletedIds.has(item.id))
+    : [];
+  return next;
+}
+
 function loadState() {
   const saved = localStorage.getItem(storageKey);
-  if (!saved) return structuredClone(seedState);
+  if (!saved) return normalizeState();
   try {
-    return { ...structuredClone(seedState), ...JSON.parse(saved) };
+    return normalizeState(JSON.parse(saved));
   } catch {
-    return structuredClone(seedState);
+    return normalizeState();
   }
 }
 
@@ -226,7 +237,7 @@ async function hydrateStateFromSupabase() {
         await saveStateToSupabase(localUpdatedAt);
         return;
       }
-      state = { ...structuredClone(seedState), ...remote.data };
+      state = normalizeState(remote.data);
       localStorage.setItem(storageKey, JSON.stringify(state));
       if (remote.updatedAt) setLocalStateUpdatedAt(remote.updatedAt);
       render();
@@ -787,6 +798,27 @@ function totalCourseRemaining(patientName) {
   return patientCourses(patientName).reduce((sum, item) => sum + courseRemaining(item), 0);
 }
 
+function billOutstandingAmount(bill) {
+  const amount = Number(bill.amount || 0);
+  const paid = bill.status === "ชำระแล้ว" && bill.paidAmount == null ? amount : Number(bill.paidAmount || 0);
+  return Math.max(amount - paid, 0);
+}
+
+function pendingBillsForPatient(patientName) {
+  return state.billing.filter((bill) => bill.patient === patientName && billOutstandingAmount(bill) > 0);
+}
+
+function pendingBillsForCourse(course) {
+  const courseName = String(course.course || "").toLowerCase();
+  return pendingBillsForPatient(course.patient).filter((bill) => String(bill.item || "").toLowerCase().includes(courseName));
+}
+
+function pendingPaymentSummary(patientName) {
+  const bills = pendingBillsForPatient(patientName);
+  const amount = bills.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
+  return { bills, amount };
+}
+
 function renderPatientsCenter() {
   const query = searchTerm.toLowerCase();
   const rows = state.patients.filter((patient) => {
@@ -851,7 +883,7 @@ function renderPatientDetail(patient) {
   const appointments = patientAppointments(patient.name);
   const activeTab = {
     records: renderPatientRecords(records),
-    courses: renderPatientCourses(courses),
+    courses: renderPatientCourses(courses, patient.name),
     history: renderPatientHistory(patient, records, courses),
     appointments: renderPatientAppointments(appointments)
   }[patientDetailTab] || "";
@@ -907,11 +939,29 @@ function renderPatientRecords(records) {
   return `<div class="timeline">${records.map((record) => `<article class="timeline-item"><strong>${escapeHtml(record.date || "-")}</strong>${recordHealthSummary(record)}<span class="muted">แพทย์: ${escapeHtml(record.doctor || "-")}</span></article>`).join("")}</div>`;
 }
 
-function renderPatientCourses(courses) {
-  if (!courses.length) return emptyState();
-  return `<div class="inventory-list">${courses.map((course) => `<article class="inventory-item course-detail-item">
+function renderPendingPaymentNotice(patientName) {
+  const pending = pendingPaymentSummary(patientName);
+  if (!pending.bills.length) return "";
+  return `<div class="payment-alert">
     <div>
-      <strong>${escapeHtml(course.course)}</strong>
+      <strong>มีรายการค้างชำระ</strong>
+      <span>${pending.bills.length} ใบเสร็จ · ยอดค้างรวม ${money(pending.amount)}</span>
+    </div>
+    <button class="secondary" data-view="billing">${icons.wallet}ดูการเงิน</button>
+  </div>`;
+}
+
+function renderPatientCourses(courses, patientName) {
+  const pendingNotice = renderPendingPaymentNotice(patientName);
+  if (!courses.length) return `${pendingNotice}${emptyState()}`;
+  return `${pendingNotice}<div class="inventory-list">${courses.map((course) => {
+    const pendingCourseBills = pendingBillsForCourse(course);
+    const pendingCourseAmount = pendingCourseBills.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
+    const pendingClass = pendingCourseAmount > 0 ? " pending-payment" : "";
+    const pendingBadge = pendingCourseAmount > 0 ? `<span class="payment-due-badge">ค้างชำระ ${money(pendingCourseAmount)}</span>` : "";
+    return `<article class="inventory-item course-detail-item${pendingClass}">
+    <div>
+      <strong>${escapeHtml(course.course)} ${pendingBadge}</strong>
       <span class="muted">${escapeHtml(course.service)} · ใช้แล้ว ${course.used}/${course.total} · เหลือ ${courseRemaining(course)} ครั้ง</span>
     </div>
     ${courseProgress(course)}
@@ -920,7 +970,8 @@ function renderPatientCourses(courses) {
       <button class="deduct-button course-deduct-action" title="ตัดคอร์ส / ใช้บริการ" aria-label="ตัดคอร์ส / ใช้บริการ" data-action="deduct" data-id="${course.id}" ${courseRemaining(course) <= 0 ? "disabled" : ""}>${icons.deduct}<span>ตัดคอร์ส / ใช้บริการ</span></button>
       <button class="action-button danger delete-action" title="ลบคอร์ส" aria-label="ลบคอร์ส" data-action="delete" data-view="courses" data-id="${course.id}">${icons.trash}<span>ลบ</span></button>
     </div>
-  </article>`).join("")}</div>`;
+  </article>`;
+  }).join("")}</div>`;
 }
 
 function renderPatientHistory(patient, records, courses) {
@@ -960,7 +1011,7 @@ function syncPatientFromRecord(record) {
 }
 
 function catalogRows() {
-  if (!state.serviceCatalog) state.serviceCatalog = structuredClone(seedState.serviceCatalog);
+  state = normalizeState(state);
   return state.serviceCatalog;
 }
 
@@ -1441,7 +1492,6 @@ function renderReceipt(patient, purchased, bill) {
       <div class="receipt-top">
         <div>
           <img class="receipt-logo-image" src="assets/logo.jpg" alt="แพทริเซียคลินิก">
-          <div class="receipt-logo">แพทริเซียคลินิก</div>
           <h2>แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม</h2>
           <p>300/8 หมู่ 9 ต.บ้านแหลม<br>อ.บ้านแหลม จ.เพชรบุรี 76110<br><strong>มือถือ: 092-8355559</strong></p>
         </div>
@@ -1603,6 +1653,10 @@ async function saveReceiptAsImage() {
 async function removeItem(view, id) {
   if (!confirm("ต้องการลบรายการนี้ใช่ไหม")) return;
   state[view] = state[view].filter((row) => row.id !== id);
+  if (view === "serviceCatalog") {
+    state.deletedServiceCatalogIds = [...new Set([...(state.deletedServiceCatalogIds || []), id])];
+    state = normalizeState(state);
+  }
   try {
     await saveState({ immediate: true });
   } catch (error) {

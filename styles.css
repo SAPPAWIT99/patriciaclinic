@@ -1160,14 +1160,6 @@ h1 {
   margin-bottom: 8px;
 }
 
-.receipt-logo {
-  color: #2563eb;
-  font-size: 28px;
-  font-weight: 800;
-  font-family: Georgia, serif;
-  margin-bottom: 8px;
-}
-
 .receipt-top h2 {
   margin: 0 0 6px;
 }
@@ -1307,11 +1299,6 @@ h1 {
   margin-bottom: 4px;
 }
 
-.receipt-mobile-export .receipt-logo {
-  font-size: 20px;
-  margin-bottom: 4px;
-}
-
 .receipt-mobile-export .receipt-top h2 {
   font-size: 15px;
   line-height: 1.25;
@@ -1439,11 +1426,6 @@ h1 {
     width: 30mm;
     height: 18mm;
     margin-bottom: 2mm;
-  }
-
-  .receipt-logo {
-    font-size: 16pt;
-    margin-bottom: 1.5mm;
   }
 
   .receipt-top h2 {
@@ -2164,9 +2146,59 @@ tr:last-child td {
   align-items: center;
 }
 
+.course-detail-item.pending-payment {
+  border-color: #fca5a5;
+  background: #fff7f7;
+  box-shadow: inset 4px 0 0 #ef4444;
+}
+
 .course-detail-item .muted {
   display: block;
   margin-top: 4px;
+}
+
+.payment-alert {
+  margin-bottom: 12px;
+  border: 1px solid #fecaca;
+  border-left: 6px solid #ef4444;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff7f7;
+  color: #7f1d1d;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payment-alert div {
+  display: grid;
+  gap: 3px;
+}
+
+.payment-alert span {
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.payment-alert button {
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  background: #fff;
+}
+
+.payment-due-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-left: 8px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 900;
+  vertical-align: middle;
 }
 
 .course-item-actions {
