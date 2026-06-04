@@ -1500,33 +1500,85 @@ function inlineReceiptStyles(source, target) {
     "object-fit", "padding", "padding-bottom", "padding-top", "text-align", "width"
   ];
   target.setAttribute("style", properties.map((name) => `${name}:${computed.getPropertyValue(name)}`).join(";"));
-  [...source.children].forEach((child, index) => inlineReceiptStyles(child, target.children[index]));
+  [...source.children].forEach((child, index) => {
+    if (target.children[index]) inlineReceiptStyles(child, target.children[index]);
+  });
 }
 
-function saveReceiptAsImage() {
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function inlineReceiptImages(node) {
+  const images = [...node.querySelectorAll("img")];
+  await Promise.all(images.map(async (image) => {
+    if (!image.src || image.src.startsWith("data:")) return;
+    try {
+      const response = await fetch(image.src, { cache: "force-cache" });
+      if (!response.ok) throw new Error("Image load failed");
+      image.src = await blobToDataUrl(await response.blob());
+    } catch (error) {
+      console.warn(error.message);
+    }
+  }));
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+}
+
+function downloadReceiptImage(blob) {
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  link.href = url;
+  link.download = `patriciaclinic-receipt-${Date.now()}.png`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  alert("บันทึกรูปใบเสร็จสำเร็จแล้ว");
+}
+
+async function saveReceiptAsImage() {
   const receipt = modalFields.querySelector(".receipt");
   if (!receipt) return;
-  const exportSource = receipt.cloneNode(true);
-  exportSource.classList.add("receipt-mobile-export");
-  exportSource.style.position = "fixed";
-  exportSource.style.left = "-10000px";
-  exportSource.style.top = "0";
-  exportSource.style.zIndex = "-1";
-  document.body.appendChild(exportSource);
-  const clone = exportSource.cloneNode(true);
-  clone.style.position = "static";
-  clone.style.left = "";
-  clone.style.top = "";
-  clone.style.zIndex = "";
-  inlineReceiptStyles(exportSource, clone);
-  const width = Math.ceil(exportSource.scrollWidth);
-  const height = Math.ceil(exportSource.scrollHeight);
-  exportSource.remove();
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-    <foreignObject width="100%" height="100%">${new XMLSerializer().serializeToString(clone)}</foreignObject>
-  </svg>`;
-  const image = new Image();
-  image.onload = () => {
+  let svgUrl = "";
+  let exportSource = null;
+  try {
+    exportSource = receipt.cloneNode(true);
+    exportSource.classList.add("receipt-mobile-export");
+    exportSource.style.position = "fixed";
+    exportSource.style.left = "-10000px";
+    exportSource.style.top = "0";
+    exportSource.style.zIndex = "-1";
+    document.body.appendChild(exportSource);
+    await inlineReceiptImages(exportSource);
+    const clone = exportSource.cloneNode(true);
+    clone.style.position = "static";
+    clone.style.left = "";
+    clone.style.top = "";
+    clone.style.zIndex = "";
+    inlineReceiptStyles(exportSource, clone);
+    const width = Math.ceil(exportSource.scrollWidth);
+    const height = Math.ceil(exportSource.scrollHeight);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <foreignObject width="100%" height="100%">
+        <div xmlns="http://www.w3.org/1999/xhtml">${new XMLSerializer().serializeToString(clone)}</div>
+      </foreignObject>
+    </svg>`;
+    const image = new Image();
+    const imageReady = new Promise((resolve, reject) => {
+      image.onload = resolve;
+      image.onerror = () => reject(new Error("ไม่สามารถสร้างรูปใบเสร็จได้"));
+    });
+    svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+    image.src = svgUrl;
+    await imageReady;
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
@@ -1534,17 +1586,16 @@ function saveReceiptAsImage() {
     context.fillStyle = "#ffffff";
     context.fillRect(0, 0, width, height);
     context.drawImage(image, 0, 0);
-    URL.revokeObjectURL(image.src);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `patriciaclinic-receipt-${Date.now()}.png`;
-      link.click();
-      URL.revokeObjectURL(link.href);
-    }, "image/png");
-  };
-  image.src = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
+    const blob = await canvasToBlob(canvas);
+    if (!blob) throw new Error("ไม่สามารถบันทึกไฟล์รูปได้");
+    downloadReceiptImage(blob);
+  } catch (error) {
+    console.warn(error.message);
+    alert("บันทึกรูปใบเสร็จไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+  } finally {
+    if (svgUrl) URL.revokeObjectURL(svgUrl);
+    if (exportSource) exportSource.remove();
+  }
 }
 
 async function removeItem(view, id) {
