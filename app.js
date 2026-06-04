@@ -1209,6 +1209,9 @@ const viewConfig = {
 function openForm(view, id) {
   const setup = viewConfig[view];
   const existing = id ? state[view].find((item) => item.id === id) : null;
+  const patientOptions = state.patients.map((patient) => (
+    `<option value="${escapeHtml(patient.name)}" label="${escapeHtml(`${patient.id || "-"} · ${patient.phone || "-"}`)}"></option>`
+  )).join("");
   modalFields.onclick = null;
   modalFields.oninput = null;
   modalSave.textContent = "บันทึก";
@@ -1217,11 +1220,12 @@ function openForm(view, id) {
     const value = existing?.[key] ?? (key === "date" || key === "lastVisit" ? todayIso : "");
     const full = type === "textarea" ? " full" : "";
     const required = key === "nextDate" ? "" : " required";
+    const listAttr = view === "appointments" && key === "patient" ? ' list="appointmentPatientOptions" autocomplete="off"' : "";
     const control = type === "textarea"
       ? `<textarea name="${key}"${required}>${escapeHtml(value)}</textarea>`
-      : `<input name="${key}" type="${type}" value="${escapeHtml(value)}"${required}>`;
+      : `<input name="${key}" type="${type}" value="${escapeHtml(value)}"${listAttr}${required}>`;
     return `<div class="field${full}"><label>${label}</label>${control}</div>`;
-  }).join("");
+  }).join("") + (view === "appointments" ? `<datalist id="appointmentPatientOptions">${patientOptions}</datalist>` : "");
   modalSave.onclick = (event) => {
     event.preventDefault();
     const form = new FormData(modal.querySelector("form"));
