@@ -1506,10 +1506,22 @@ function inlineReceiptStyles(source, target) {
 function saveReceiptAsImage() {
   const receipt = modalFields.querySelector(".receipt");
   if (!receipt) return;
-  const clone = receipt.cloneNode(true);
-  inlineReceiptStyles(receipt, clone);
-  const width = Math.ceil(receipt.scrollWidth);
-  const height = Math.ceil(receipt.scrollHeight);
+  const exportSource = receipt.cloneNode(true);
+  exportSource.classList.add("receipt-mobile-export");
+  exportSource.style.position = "fixed";
+  exportSource.style.left = "-10000px";
+  exportSource.style.top = "0";
+  exportSource.style.zIndex = "-1";
+  document.body.appendChild(exportSource);
+  const clone = exportSource.cloneNode(true);
+  clone.style.position = "static";
+  clone.style.left = "";
+  clone.style.top = "";
+  clone.style.zIndex = "";
+  inlineReceiptStyles(exportSource, clone);
+  const width = Math.ceil(exportSource.scrollWidth);
+  const height = Math.ceil(exportSource.scrollHeight);
+  exportSource.remove();
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
     <foreignObject width="100%" height="100%">${new XMLSerializer().serializeToString(clone)}</foreignObject>
   </svg>`;
