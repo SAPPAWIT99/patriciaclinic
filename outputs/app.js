@@ -1017,12 +1017,20 @@ function renderPatientAppointments(appointments) {
   return `<div class="timeline">${appointments.map((item) => `<article class="timeline-item"><strong>${escapeHtml(item.date)} · ${escapeHtml(item.time)}</strong><span>${escapeHtml(item.service)} · ${escapeHtml(item.doctor)}</span>${badge(item.status)}</article>`).join("")}</div>`;
 }
 
+function nextPatientId() {
+  const highest = state.patients.reduce((max, patient) => {
+    const match = String(patient.id || "").match(/(\d+)$/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 260000);
+  return `HN-${String(highest + 1).padStart(6, "0")}`;
+}
+
 function syncPatientFromRecord(record) {
   const name = recordFullName(record);
   if (!name || name === "-") return;
   const existing = state.patients.find((patient) => patient.name === name || (record.phone && patient.phone === record.phone));
   const patientData = {
-    id: existing?.id || `HN-${String(Date.now()).slice(-6)}`,
+    id: existing?.id || nextPatientId(),
     name,
     phone: record.phone || existing?.phone || "",
     age: existing?.age || "",
@@ -1098,7 +1106,7 @@ const viewConfig = {
     addLabel: "เพิ่มคนไข้",
     filters: ["ใหม่", "ติดตามผล", "เรื้อรัง"],
     fields: [
-      ["id", "รหัสคนไข้"], ["name", "ชื่อ-นามสกุล"], ["phone", "เบอร์โทร"], ["age", "อายุ", "number"],
+      ["id", "เลข HN"], ["name", "ชื่อ-นามสกุล"], ["phone", "เบอร์โทร"], ["age", "อายุ", "number"],
       ["allergy", "แพ้ยา"], ["lastVisit", "เข้ารับบริการล่าสุด", "date"], ["tag", "ประเภท"]
     ],
     columns: [
@@ -1217,13 +1225,14 @@ function openForm(view, id) {
   modalSave.textContent = "บันทึก";
   modalTitle.textContent = existing ? `แก้ไข${setup.addLabel.replace("เพิ่ม", "")}` : setup.addLabel;
   modalFields.innerHTML = setup.fields.map(([key, label, type = "text"]) => {
-    const value = existing?.[key] ?? (key === "date" || key === "lastVisit" ? todayIso : "");
+    const value = existing?.[key] ?? (!existing && view === "patients" && key === "id" ? nextPatientId() : key === "date" || key === "lastVisit" ? todayIso : "");
     const full = type === "textarea" ? " full" : "";
     const required = key === "nextDate" ? "" : " required";
     const listAttr = view === "appointments" && key === "patient" ? ' list="appointmentPatientOptions" autocomplete="off"' : "";
+    const readonlyAttr = !existing && view === "patients" && key === "id" ? " readonly" : "";
     const control = type === "textarea"
       ? `<textarea name="${key}"${required}>${escapeHtml(value)}</textarea>`
-      : `<input name="${key}" type="${type}" value="${escapeHtml(value)}"${listAttr}${required}>`;
+      : `<input name="${key}" type="${type}" value="${escapeHtml(value)}"${listAttr}${readonlyAttr}${required}>`;
     return `<div class="field${full}"><label>${label}</label>${control}</div>`;
   }).join("") + (view === "appointments" ? `<datalist id="appointmentPatientOptions">${patientOptions}</datalist>` : "");
   modalSave.onclick = (event) => {
