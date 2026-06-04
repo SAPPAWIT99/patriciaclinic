@@ -1385,7 +1385,8 @@ h1 {
     width: 210mm;
     min-height: 297mm;
     margin: 0 !important;
-    background: #fff;
+    background: #fff !important;
+    box-shadow: none !important;
   }
 
   body {
@@ -1405,10 +1406,12 @@ h1 {
     inset: auto !important;
     width: 194mm;
     max-width: 194mm;
-    box-shadow: none;
+    box-shadow: none !important;
     margin: 0 auto !important;
     padding: 0 !important;
-    border: 0;
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
     overflow: visible;
   }
 
@@ -1417,15 +1420,20 @@ h1 {
     max-width: none;
     padding: 0 !important;
     overflow: visible;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .receipt {
-    border: 0;
+    border: 0 !important;
     width: 132mm;
     max-width: 132mm;
     margin: 0 auto !important;
     padding: 5mm;
-    border-radius: 0;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: 0 !important;
     font-size: 8pt;
     line-height: 1.25;
     break-inside: avoid;
@@ -2200,12 +2208,16 @@ tr:last-child td {
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
-  white-space: nowrap;
+  line-height: 1.35;
 }
 
 .course-detail-item {
-  grid-template-columns: minmax(0, 1.1fr) minmax(190px, 0.9fr) auto;
+  grid-template-columns: minmax(260px, 1fr) minmax(220px, 0.72fr);
+  grid-template-areas:
+    "info actions"
+    "usage actions";
   align-items: center;
+  gap: 10px 16px;
 }
 
 .course-detail-item.pending-payment {
@@ -2217,6 +2229,32 @@ tr:last-child td {
 .course-detail-item .muted {
   display: block;
   margin-top: 4px;
+}
+
+.course-info {
+  grid-area: info;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.course-info strong {
+  flex: 1 1 220px;
+  min-width: 0;
+  line-height: 1.35;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.course-info .muted {
+  flex-basis: 100%;
+}
+
+.course-usage {
+  grid-area: usage;
+  min-width: 0;
 }
 
 .payment-alert {
@@ -2253,7 +2291,7 @@ tr:last-child td {
 .payment-due-badge {
   display: inline-flex;
   width: fit-content;
-  margin-left: 8px;
+  flex: 0 0 auto;
   border-radius: 999px;
   padding: 4px 8px;
   background: #fee2e2;
@@ -2345,10 +2383,13 @@ tr:last-child td {
 }
 
 .course-item-actions {
+  grid-area: actions;
   display: flex;
   align-items: center;
   gap: 8px;
   justify-content: flex-end;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .course-deduct-action {
@@ -2705,10 +2746,19 @@ menu {
 
   .course-detail-item {
     grid-template-columns: 1fr;
+    grid-template-areas:
+      "info"
+      "usage"
+      "actions";
   }
 
   .course-item-actions {
     justify-content: flex-start;
+  }
+
+  .course-deduct-action,
+  .pay-due-button {
+    min-width: 0;
   }
 
   .service-hero {

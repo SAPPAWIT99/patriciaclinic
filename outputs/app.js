@@ -983,11 +983,14 @@ function renderPatientCourses(courses, patientName) {
       ? `<button class="pay-due-button" title="ชำระเงินที่ค้างอยู่" aria-label="ชำระเงินที่ค้างอยู่" data-action="payOutstandingCourse" data-id="${course.id}">${icons.wallet}<span>ชำระค้าง</span></button>`
       : "";
     return `<article class="inventory-item course-detail-item${pendingClass}">
-    <div>
-      <strong>${escapeHtml(course.course)} ${pendingBadge}</strong>
-      <span class="muted">${escapeHtml(course.service)} · ใช้แล้ว ${course.used}/${course.total} · เหลือ ${courseRemaining(course)} ครั้ง</span>
+    <div class="course-info">
+      <strong>${escapeHtml(course.course)}</strong>
+      ${pendingBadge}
+      <span class="muted">${escapeHtml(course.service)}</span>
     </div>
-    ${courseProgress(course)}
+    <div class="course-usage">
+      ${courseProgress(course)}
+    </div>
     <div class="course-item-actions">
       ${badge(courseStatus(course))}
       ${payPendingButton}
