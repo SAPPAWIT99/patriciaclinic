@@ -2252,6 +2252,25 @@ dialog::backdrop {
   font-size: 20px;
 }
 
+.modal-close {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.modal-close:hover {
+  background: #fecaca;
+  color: #7f1d1d;
+}
+
+.modal-close svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 menu {
   padding: 0;
   margin: 18px 0 0;

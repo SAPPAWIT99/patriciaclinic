@@ -80,13 +80,13 @@
       <form method="dialog" class="modal">
         <div class="modal-head">
           <h2 id="modalTitle">เพิ่มข้อมูล</h2>
-          <button class="icon-button" value="cancel" aria-label="ปิด">
+          <button class="icon-button modal-close" value="cancel" aria-label="ปิด" formnovalidate>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
           </button>
         </div>
         <div id="modalFields" class="form-grid"></div>
         <menu>
-          <button value="cancel" class="secondary">ยกเลิก</button>
+          <button value="cancel" class="secondary" formnovalidate>ยกเลิก</button>
           <button id="modalSave" value="default">บันทึก</button>
         </menu>
       </form>

@@ -1254,7 +1254,7 @@ function openBuyCourse(patientId) {
         <div class="buy-course-menu">
         ${catalog.map((item, index) => `
           <label class="buy-course-option" data-course-name="${escapeHtml(item.name.toLowerCase())}" data-course-category="${escapeHtml(item.category.toLowerCase())}">
-            <input type="checkbox" name="catalogId" value="${escapeHtml(item.id)}" ${index === 0 ? "checked" : ""}>
+            <input type="checkbox" name="catalogId" value="${escapeHtml(item.id)}">
             <span class="service-icon">${icons.course}</span>
             <span class="buy-course-info">
               <strong>${escapeHtml(item.name)}</strong>
@@ -1544,57 +1544,59 @@ function downloadReceiptImage(blob) {
   alert("บันทึกรูปใบเสร็จสำเร็จแล้ว");
 }
 
+function loadHtml2Canvas() {
+  if (window.html2canvas) return Promise.resolve(window.html2canvas);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+    script.async = true;
+    script.onload = () => window.html2canvas ? resolve(window.html2canvas) : reject(new Error("html2canvas unavailable"));
+    script.onerror = () => reject(new Error("html2canvas load failed"));
+    document.head.appendChild(script);
+  });
+}
+
 async function saveReceiptAsImage() {
   const receipt = modalFields.querySelector(".receipt");
   if (!receipt) return;
-  let svgUrl = "";
   let exportSource = null;
+  const saveButton = modalFields.querySelector('[data-action="saveReceiptImage"]');
   try {
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.dataset.originalHtml = saveButton.innerHTML;
+      saveButton.textContent = "กำลังบันทึก...";
+    }
+    const renderToCanvas = await loadHtml2Canvas();
     exportSource = receipt.cloneNode(true);
     exportSource.classList.add("receipt-mobile-export");
     exportSource.style.position = "fixed";
-    exportSource.style.left = "-10000px";
+    exportSource.style.left = "-9999px";
     exportSource.style.top = "0";
-    exportSource.style.zIndex = "-1";
+    exportSource.style.zIndex = "9999";
     document.body.appendChild(exportSource);
     await inlineReceiptImages(exportSource);
-    const clone = exportSource.cloneNode(true);
-    clone.style.position = "static";
-    clone.style.left = "";
-    clone.style.top = "";
-    clone.style.zIndex = "";
-    inlineReceiptStyles(exportSource, clone);
-    const width = Math.ceil(exportSource.scrollWidth);
-    const height = Math.ceil(exportSource.scrollHeight);
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-      <foreignObject width="100%" height="100%">
-        <div xmlns="http://www.w3.org/1999/xhtml">${new XMLSerializer().serializeToString(clone)}</div>
-      </foreignObject>
-    </svg>`;
-    const image = new Image();
-    const imageReady = new Promise((resolve, reject) => {
-      image.onload = resolve;
-      image.onerror = () => reject(new Error("ไม่สามารถสร้างรูปใบเสร็จได้"));
+    const canvas = await renderToCanvas(exportSource, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      useCORS: true,
+      width: exportSource.scrollWidth,
+      height: exportSource.scrollHeight,
+      windowWidth: 420
     });
-    svgUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-    image.src = svgUrl;
-    await imageReady;
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, width, height);
-    context.drawImage(image, 0, 0);
     const blob = await canvasToBlob(canvas);
     if (!blob) throw new Error("ไม่สามารถบันทึกไฟล์รูปได้");
     downloadReceiptImage(blob);
   } catch (error) {
     console.warn(error.message);
-    alert("บันทึกรูปใบเสร็จไม่สำเร็จ กรุณาลองใหม่อีกครั้ง");
+    alert("บันทึกรูปใบเสร็จไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง");
   } finally {
-    if (svgUrl) URL.revokeObjectURL(svgUrl);
     if (exportSource) exportSource.remove();
+    if (saveButton) {
+      saveButton.disabled = false;
+      saveButton.innerHTML = saveButton.dataset.originalHtml || "บันทึกเป็นรูป";
+      delete saveButton.dataset.originalHtml;
+    }
   }
 }
 
