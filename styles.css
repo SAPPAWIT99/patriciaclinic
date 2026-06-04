@@ -1376,15 +1376,20 @@ h1 {
 
 @media print {
   @page {
-    size: A5 portrait;
+    size: A4 portrait;
     margin: 8mm;
   }
 
   html,
   body {
-    width: 148mm;
-    min-height: 210mm;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 !important;
     background: #fff;
+  }
+
+  body {
+    display: block !important;
   }
 
   body > *:not(dialog),
@@ -1396,111 +1401,120 @@ h1 {
 
   dialog {
     display: block;
-    position: static;
-    width: 148mm;
-    max-width: 148mm;
+    position: static !important;
+    inset: auto !important;
+    width: 194mm;
+    max-width: 194mm;
     box-shadow: none;
-    margin: 0 auto;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    border: 0;
+    overflow: visible;
   }
 
   .modal {
-    padding: 0;
+    width: 100%;
+    max-width: none;
+    padding: 0 !important;
+    overflow: visible;
   }
 
   .receipt {
     border: 0;
-    width: 100%;
+    width: 132mm;
     max-width: 132mm;
-    margin: 0 auto;
-    padding: 6mm;
+    margin: 0 auto !important;
+    padding: 5mm;
     border-radius: 0;
-    font-size: 10pt;
+    font-size: 8pt;
+    line-height: 1.25;
+    break-inside: avoid;
   }
 
   .receipt-top {
-    gap: 8mm;
-    padding-bottom: 4mm;
+    gap: 6mm;
+    padding-bottom: 3mm;
   }
 
   .receipt-logo-image {
-    width: 30mm;
-    height: 18mm;
-    margin-bottom: 2mm;
-  }
-
-  .receipt-top h2 {
-    font-size: 12pt;
-    line-height: 1.25;
+    width: 22mm;
+    height: 14mm;
     margin-bottom: 1.5mm;
   }
 
+  .receipt-top h2 {
+    font-size: 9.5pt;
+    line-height: 1.25;
+    margin-bottom: 1mm;
+  }
+
   .receipt-top p {
-    font-size: 9pt;
-    line-height: 1.35;
+    font-size: 7.5pt;
+    line-height: 1.3;
   }
 
   .receipt-box {
-    width: 35mm;
-    font-size: 8.5pt;
+    width: 32mm;
+    font-size: 7.5pt;
   }
 
   .receipt-box strong,
   .receipt-box span,
   .receipt-box small {
-    padding: 1.5mm;
+    padding: 1.2mm;
   }
 
   .receipt-meta {
-    gap: 2mm 6mm;
-    padding: 4mm 0;
-    font-size: 9pt;
+    gap: 1.5mm 5mm;
+    padding: 3mm 0;
+    font-size: 7.8pt;
   }
 
   .receipt-table {
-    margin-top: 4mm;
-    font-size: 8.5pt;
+    margin-top: 3mm;
+    font-size: 7.5pt;
   }
 
   .receipt-table td,
   .receipt-table th {
-    padding: 2mm 1.5mm;
+    padding: 1.5mm 1.2mm;
   }
 
   .receipt-table span {
-    font-size: 7.5pt;
+    font-size: 6.8pt;
   }
 
   .receipt-summary {
-    width: 72mm;
-    margin-top: 4mm;
-    gap: 1.5mm;
-    font-size: 9pt;
+    width: 62mm;
+    margin-top: 3mm;
+    gap: 1mm;
+    font-size: 7.8pt;
   }
 
   .receipt-summary .net {
-    padding-top: 2mm;
-    font-size: 11pt;
+    padding-top: 1.5mm;
+    font-size: 9.5pt;
   }
 
   .receipt-footer {
-    margin-top: 4mm;
-    padding-top: 3mm;
-    font-size: 8.5pt;
+    margin-top: 3mm;
+    padding-top: 2mm;
+    font-size: 7.3pt;
   }
 
   .receipt-signatures {
-    margin-top: 11mm;
+    margin-top: 7mm;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12mm;
+    gap: 10mm;
   }
 
   .receipt-signatures span {
-    height: 8mm;
-    margin-bottom: 2mm;
+    height: 6mm;
+    margin-bottom: 1.5mm;
   }
 
   .receipt-signatures strong {
-    font-size: 8.5pt;
+    font-size: 7.3pt;
   }
 }
 
@@ -1510,7 +1524,7 @@ h1 {
 }
 
 .stats {
-  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .two-col {
@@ -1545,6 +1559,31 @@ h1 {
   color: var(--ok);
   font-weight: 700;
   font-size: 13px;
+}
+
+.stat-danger {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff7f7 0%, #fff 100%);
+  box-shadow: 0 16px 32px rgba(220, 38, 38, 0.12);
+}
+
+.stat-danger span,
+.stat-danger b {
+  color: #b91c1c;
+}
+
+.stat-danger strong {
+  color: #dc2626;
+}
+
+.summary-stack .summary-danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+}
+
+.summary-stack .summary-danger span,
+.summary-stack .summary-danger strong {
+  color: #b91c1c;
 }
 
 .dashboard-controls {
@@ -1751,6 +1790,7 @@ h1 {
 
 .chart-bars {
   min-height: 250px;
+  position: relative;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
@@ -1759,6 +1799,28 @@ h1 {
   border-bottom: 1px dashed #e2e8ef;
   background: repeating-linear-gradient(to top, transparent 0, transparent 61px, #edf1f5 62px);
   padding: 0 8px;
+}
+
+.chart-target-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  border-top: 2px dashed #ef4444;
+  pointer-events: none;
+}
+
+.chart-target-line span {
+  position: absolute;
+  right: 4px;
+  bottom: 6px;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 900;
+  box-shadow: 0 8px 18px rgba(220, 38, 38, 0.14);
 }
 
 .chart-bar {
@@ -2199,6 +2261,87 @@ tr:last-child td {
   font-size: 12px;
   font-weight: 900;
   vertical-align: middle;
+}
+
+.pay-due-button {
+  width: auto;
+  min-width: 118px;
+  height: 38px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.pay-due-button svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.payment-settle {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.settle-summary,
+.pending-bill-list {
+  grid-column: 1 / -1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fbff;
+}
+
+.settle-summary {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 8px 12px;
+}
+
+.settle-summary span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.settle-summary b {
+  color: #b91c1c;
+  font-size: 22px;
+}
+
+.pending-bill-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pending-bill-list div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.pending-bill-list div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.pending-bill-list span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.pending-bill-list strong {
+  color: #b91c1c;
 }
 
 .course-item-actions {

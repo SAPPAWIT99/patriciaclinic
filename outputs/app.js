@@ -388,7 +388,15 @@ function billChartKey(dateString, period) {
   return dateString.slice(0, 7);
 }
 
+function moneyCompact(value) {
+  const amount = Number(value || 0);
+  if (amount >= 1000000) return `฿${Math.round(amount / 100000) / 10}M`;
+  if (amount >= 1000) return `฿${Math.round(amount / 1000)}k`;
+  return `฿${amount}`;
+}
+
 function renderSalesBarChart(bills, period) {
+  const monthlyTarget = 600000;
   const labels = chartLabelsForPeriod(period);
   const totals = labels.map((label) => {
     const amount = bills
@@ -396,10 +404,16 @@ function renderSalesBarChart(bills, period) {
       .reduce((sum, item) => sum + Number(item.paidAmount || item.amount || 0), 0);
     return { ...label, amount };
   });
-  const max = Math.max(...totals.map((item) => item.amount), 1);
+  const target = period === "month" ? monthlyTarget : 0;
+  const max = Math.max(...totals.map((item) => item.amount), target, 1);
+  const axisLabels = [1, 0.75, 0.5, 0.25, 0].map((ratio) => moneyCompact(max * ratio));
+  const targetLine = target
+    ? `<div class="chart-target-line" style="bottom:${Math.min((target / max) * 100, 100)}%"><span>เป้าหมายยอดขายรายเดือน ${moneyCompact(target)}</span></div>`
+    : "";
   return `<div class="sales-chart">
-    <div class="chart-axis"><span>฿100k</span><span>฿75k</span><span>฿50k</span><span>฿25k</span><span>฿0k</span></div>
+    <div class="chart-axis">${axisLabels.map((label) => `<span>${label}</span>`).join("")}</div>
     <div class="chart-bars">
+      ${targetLine}
       ${totals.map((item) => `<div class="chart-bar"><i style="height:${Math.max((item.amount / max) * 100, item.amount ? 4 : 0)}%"></i><span>${escapeHtml(item.label)}</span></div>`).join("")}
     </div>
   </div>`;
@@ -570,6 +584,7 @@ function renderDashboard() {
   const paidPeriodBills = periodBills.filter((item) => item.status === "ชำระแล้ว" || Number(item.paidAmount || 0) > 0);
   const income = paidPeriodBills.reduce((sum, item) => sum + Number(item.paidAmount || item.amount || 0), 0);
   const pending = periodBills.reduce((sum, item) => sum + Math.max(Number(item.amount || 0) - Number(item.paidAmount || 0), 0), 0);
+  const pendingCount = periodBills.filter((item) => Math.max(Number(item.amount || 0) - Number(item.paidAmount || 0), 0) > 0).length;
   const lowStock = state.inventory.filter((item) => Number(item.qty) <= Number(item.reorder)).length;
   return `
     <section class="hero-strip">
@@ -606,6 +621,7 @@ function renderDashboard() {
       ${stat("คิวที่ต้องดูแล", waiting, "อัปเดตแบบเรียลไทม์")}
       ${stat("นัดหมายวันนี้", todayApps, "พร้อมเข้าห้องตรวจ")}
       ${stat(`รายรับ${periodLabel(dashboardPeriod)}`, money(income), pending ? `ค้างชำระ ${money(pending)}` : "ชำระครบ")}
+      ${stat("ยอดค้างชำระ", money(pending), pendingCount ? `${pendingCount} ใบเสร็จต้องติดตาม` : "ไม่มีค้างชำระ", "danger")}
     </section>
     <section class="grid two-col" style="margin-top:16px">
       <div class="panel sales-panel">
@@ -622,7 +638,7 @@ function renderDashboard() {
         <div class="panel-head"><h2>สถานะช่วงนี้</h2><button data-view="billing" class="secondary">ดูการเงิน</button></div>
         <div class="summary-stack">
           <article><span>ยอดรับชำระ</span><strong>${money(income)}</strong></article>
-          <article><span>ยอดค้างชำระ</span><strong>${money(pending)}</strong></article>
+          <article class="${pending ? "summary-danger" : ""}"><span>ยอดค้างชำระ</span><strong>${money(pending)}</strong></article>
           <article><span>สต็อกใกล้หมด</span><strong>${lowStock}</strong></article>
         </div>
       </div>
@@ -710,8 +726,8 @@ function renderFinanceSummary() {
     </section>`;
 }
 
-function stat(label, value, note) {
-  return `<article class="card stat"><span>${label}</span><strong>${value}</strong><b>${note}</b></article>`;
+function stat(label, value, note, tone = "") {
+  return `<article class="card stat${tone ? ` stat-${tone}` : ""}"><span>${label}</span><strong>${value}</strong><b>${note}</b></article>`;
 }
 
 function queueCard(item, index = 0) {
@@ -817,6 +833,10 @@ function pendingPaymentSummary(patientName) {
   const bills = pendingBillsForPatient(patientName);
   const amount = bills.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
   return { bills, amount };
+}
+
+function patientByName(patientName) {
+  return state.patients.find((patient) => patient.name === patientName) || { id: "-", name: patientName };
 }
 
 function renderPatientsCenter() {
@@ -959,6 +979,9 @@ function renderPatientCourses(courses, patientName) {
     const pendingCourseAmount = pendingCourseBills.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
     const pendingClass = pendingCourseAmount > 0 ? " pending-payment" : "";
     const pendingBadge = pendingCourseAmount > 0 ? `<span class="payment-due-badge">ค้างชำระ ${money(pendingCourseAmount)}</span>` : "";
+    const payPendingButton = pendingCourseAmount > 0
+      ? `<button class="pay-due-button" title="ชำระเงินที่ค้างอยู่" aria-label="ชำระเงินที่ค้างอยู่" data-action="payOutstandingCourse" data-id="${course.id}">${icons.wallet}<span>ชำระค้าง</span></button>`
+      : "";
     return `<article class="inventory-item course-detail-item${pendingClass}">
     <div>
       <strong>${escapeHtml(course.course)} ${pendingBadge}</strong>
@@ -967,6 +990,7 @@ function renderPatientCourses(courses, patientName) {
     ${courseProgress(course)}
     <div class="course-item-actions">
       ${badge(courseStatus(course))}
+      ${payPendingButton}
       <button class="deduct-button course-deduct-action" title="ตัดคอร์ส / ใช้บริการ" aria-label="ตัดคอร์ส / ใช้บริการ" data-action="deduct" data-id="${course.id}" ${courseRemaining(course) <= 0 ? "disabled" : ""}>${icons.deduct}<span>ตัดคอร์ส / ใช้บริการ</span></button>
       <button class="action-button danger delete-action" title="ลบคอร์ส" aria-label="ลบคอร์ส" data-action="delete" data-view="courses" data-id="${course.id}">${icons.trash}<span>ลบ</span></button>
     </div>
@@ -1479,6 +1503,128 @@ function openBuyCourse(patientId) {
   modal.showModal();
 }
 
+function openPayOutstandingCourse(courseId) {
+  const course = state.courses.find((item) => item.id === courseId);
+  if (!course) return;
+  const bills = pendingBillsForCourse(course);
+  const totalDue = bills.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
+  if (!bills.length || totalDue <= 0) {
+    alert("คอร์สนี้ไม่มีรายการค้างชำระ");
+    return;
+  }
+  const patient = patientByName(course.patient);
+  modalTitle.textContent = "ชำระเงินค้าง";
+  modalSave.textContent = "ยืนยันรับชำระ";
+  modalFields.onclick = null;
+  modalFields.oninput = null;
+  modalFields.innerHTML = `
+    <div class="payment-settle">
+      <div class="settle-summary">
+        <span>ลูกค้า</span>
+        <strong>${escapeHtml(course.patient)}</strong>
+        <span>คอร์ส</span>
+        <strong>${escapeHtml(course.course)}</strong>
+        <span>ยอดค้างทั้งหมด</span>
+        <b>${money(totalDue)}</b>
+      </div>
+      <div class="pending-bill-list">
+        ${bills.map((bill) => `<div><span>${escapeHtml(bill.id)} · ${escapeHtml(bill.item)}</span><strong>${money(billOutstandingAmount(bill))}</strong></div>`).join("")}
+      </div>
+      <div class="field full">
+        <label>ช่องทางชำระเงิน</label>
+        <div class="payment-methods">
+          <label><input type="radio" name="paymentMethod" value="เงินสด" checked><span>เงินสด</span></label>
+          <label><input type="radio" name="paymentMethod" value="โอนเงิน"><span>โอนเงิน</span></label>
+          <label><input type="radio" name="paymentMethod" value="บัตรเครดิต"><span>บัตรเครดิต</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>ยอดรับเงิน</label>
+        <input name="paidAmount" type="number" min="0" max="${totalDue}" value="${totalDue}" required>
+      </div>
+      <div class="field">
+        <label>วันที่รับชำระ</label>
+        <input name="paymentDate" type="date" value="${todayIso}" required>
+      </div>
+      <div class="field full">
+        <label>ผู้ขาย / ผู้รับเงิน</label>
+        <input name="seller" value="แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม">
+      </div>
+    </div>
+  `;
+  modalFields.oninput = (event) => {
+    if (event.target.name !== "paidAmount") return;
+    const value = Math.max(0, Math.min(Number(event.target.value || 0), totalDue));
+    event.target.value = String(value);
+  };
+  modalSave.onclick = (event) => {
+    event.preventDefault();
+    const form = new FormData(modal.querySelector("form"));
+    let remainingPayment = Math.max(0, Math.min(Number(form.get("paidAmount") || 0), totalDue));
+    if (remainingPayment <= 0) {
+      alert("กรุณาใส่ยอดรับเงิน");
+      return;
+    }
+    const paymentDate = String(form.get("paymentDate") || todayIso);
+    const paymentMethod = String(form.get("paymentMethod") || "เงินสด");
+    const seller = String(form.get("seller") || "");
+    const paidBillIds = new Set(bills.map((bill) => bill.id));
+    const paidLines = [];
+    state.billing = state.billing.map((bill) => {
+      if (!paidBillIds.has(bill.id) || remainingPayment <= 0) return bill;
+      const due = billOutstandingAmount(bill);
+      const payNow = Math.min(due, remainingPayment);
+      remainingPayment -= payNow;
+      paidLines.push({ bill, payNow });
+      const nextPaid = Number(bill.paidAmount || 0) + payNow;
+      return {
+        ...bill,
+        paidAmount: nextPaid,
+        paymentMethod,
+        seller,
+        paidDate: paymentDate,
+        status: nextPaid >= Number(bill.amount || 0) ? "ชำระแล้ว" : "รอชำระ"
+      };
+    });
+    const received = paidLines.reduce((sum, line) => sum + line.payNow, 0);
+    const receiptBill = {
+      id: `B-PAY-${String(Date.now()).slice(-6)}`,
+      patient: course.patient,
+      date: paymentDate,
+      item: `รับชำระยอดค้าง ${course.course}`,
+      amount: totalDue,
+      subtotal: totalDue,
+      discount: 0,
+      paidAmount: received,
+      paymentMethod,
+      seller,
+      status: received >= totalDue ? "ชำระแล้ว" : "รอชำระ"
+    };
+    const receiptItems = paidLines.map(({ bill, payNow }) => ({
+      selected: { name: bill.item || course.course, price: payNow, sessions: 1 },
+      qty: 1
+    }));
+    saveState();
+    patientDetailTab = "courses";
+    render();
+    modalTitle.textContent = "ใบเสร็จรับเงิน";
+    modalFields.onclick = null;
+    modalFields.oninput = null;
+    modalFields.innerHTML = renderReceipt(patient, receiptItems, receiptBill);
+    modalFields.onclick = (receiptEvent) => {
+      if (receiptEvent.target.closest('[data-action="printReceipt"]')) window.print();
+      if (receiptEvent.target.closest('[data-action="saveReceiptImage"]')) saveReceiptAsImage();
+    };
+    modalSave.textContent = "ปิด";
+    modalSave.onclick = (closeEvent) => {
+      closeEvent.preventDefault();
+      modal.close();
+      render();
+    };
+  };
+  modal.showModal();
+}
+
 function renderReceipt(patient, purchased, bill) {
   const dateLabel = new Date(`${bill.date}T00:00:00`).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "numeric" });
   const change = Math.max(Number(bill.paidAmount || 0) - Number(bill.amount || 0), 0);
@@ -1714,6 +1860,7 @@ contentEl.addEventListener("click", (event) => {
     render();
   }
   if (button.dataset.action === "buyCourse") openBuyCourse(button.dataset.patientId);
+  if (button.dataset.action === "payOutstandingCourse") openPayOutstandingCourse(button.dataset.id);
   if (button.dataset.action === "deduct") openDeductCourse(button.dataset.id);
   if (button.dataset.action === "edit") openForm(button.dataset.view, button.dataset.id);
   if (button.dataset.action === "delete") removeItem(button.dataset.view, button.dataset.id);
@@ -1757,13 +1904,6 @@ contentEl.addEventListener("change", (event) => {
 document.querySelector("#globalSearch").addEventListener("input", (event) => {
   searchTerm = event.target.value.trim();
   if (currentView === "dashboard" || currentView === "ownerSummary" || currentView === "financeSummary") currentView = "patients";
-  render();
-});
-
-document.querySelector("#seedButton").addEventListener("click", () => {
-  if (!confirm("คืนค่าข้อมูลตัวอย่างและล้างข้อมูลที่แก้ไขไว้ใช่ไหม")) return;
-  state = structuredClone(seedState);
-  saveState();
   render();
 });
 
