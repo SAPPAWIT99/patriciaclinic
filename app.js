@@ -1,4 +1,5 @@
 const storageKey = "patriciaclinic-state-v1";
+const storageMetaKey = "patriciaclinic-state-meta-v1";
 const authKey = "patriciaclinic-auth-v1";
 const validUser = { username: "Patricia", password: "p5559" };
 const supabaseConfig = {
@@ -138,9 +139,34 @@ function loadState() {
   }
 }
 
-function saveState() {
+function readLocalStateMeta() {
+  try {
+    return JSON.parse(localStorage.getItem(storageMetaKey) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function localStateUpdatedAt() {
+  return readLocalStateMeta().updatedAt || "";
+}
+
+function setLocalStateUpdatedAt(updatedAt) {
+  localStorage.setItem(storageMetaKey, JSON.stringify({ updatedAt }));
+}
+
+function timestampValue(value) {
+  const time = Date.parse(value || "");
+  return Number.isFinite(time) ? time : 0;
+}
+
+function saveState(options = {}) {
+  const updatedAt = options.updatedAt || new Date().toISOString();
   localStorage.setItem(storageKey, JSON.stringify(state));
-  queueSupabaseSave();
+  setLocalStateUpdatedAt(updatedAt);
+  if (options.immediate) return saveStateToSupabase(updatedAt);
+  queueSupabaseSave(updatedAt);
+  return Promise.resolve();
 }
 
 function hasSupabaseConfig() {
@@ -157,14 +183,15 @@ function supabaseHeaders() {
 
 async function loadStateFromSupabase() {
   if (!hasSupabaseConfig()) return null;
-  const endpoint = `${supabaseConfig.url}/rest/v1/${supabaseConfig.table}?id=eq.${encodeURIComponent(supabaseConfig.recordId)}&select=data`;
+  const endpoint = `${supabaseConfig.url}/rest/v1/${supabaseConfig.table}?id=eq.${encodeURIComponent(supabaseConfig.recordId)}&select=data,updated_at`;
   const response = await fetch(endpoint, { headers: supabaseHeaders() });
   if (!response.ok) throw new Error(`Supabase load failed: ${response.status}`);
   const rows = await response.json();
-  return rows[0]?.data || null;
+  if (!rows[0]?.data) return null;
+  return { data: rows[0].data, updatedAt: rows[0].updated_at };
 }
 
-async function saveStateToSupabase() {
+async function saveStateToSupabase(updatedAt = new Date().toISOString()) {
   if (!hasSupabaseConfig()) return;
   const endpoint = `${supabaseConfig.url}/rest/v1/${supabaseConfig.table}?on_conflict=id`;
   const response = await fetch(endpoint, {
@@ -173,7 +200,7 @@ async function saveStateToSupabase() {
     body: JSON.stringify({
       id: supabaseConfig.recordId,
       data: state,
-      updated_at: new Date().toISOString()
+      updated_at: updatedAt
     })
   });
   if (!response.ok) throw new Error(`Supabase save failed: ${response.status}`);
@@ -181,21 +208,27 @@ async function saveStateToSupabase() {
 
 let supabaseSaveTimer = null;
 
-function queueSupabaseSave() {
+function queueSupabaseSave(updatedAt = new Date().toISOString()) {
   if (!hasSupabaseConfig()) return;
   clearTimeout(supabaseSaveTimer);
   supabaseSaveTimer = setTimeout(() => {
-    saveStateToSupabase().catch((error) => console.warn(error.message));
+    saveStateToSupabase(updatedAt).catch((error) => console.warn(error.message));
   }, 450);
 }
 
 async function hydrateStateFromSupabase() {
   if (!hasSupabaseConfig()) return;
   try {
-    const remoteState = await loadStateFromSupabase();
-    if (remoteState) {
-      state = { ...structuredClone(seedState), ...remoteState };
+    const remote = await loadStateFromSupabase();
+    if (remote?.data) {
+      const localUpdatedAt = localStateUpdatedAt();
+      if (timestampValue(localUpdatedAt) > timestampValue(remote.updatedAt)) {
+        await saveStateToSupabase(localUpdatedAt);
+        return;
+      }
+      state = { ...structuredClone(seedState), ...remote.data };
       localStorage.setItem(storageKey, JSON.stringify(state));
+      if (remote.updatedAt) setLocalStateUpdatedAt(remote.updatedAt);
       render();
       return;
     }
@@ -1502,10 +1535,15 @@ function saveReceiptAsImage() {
   image.src = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
 }
 
-function removeItem(view, id) {
+async function removeItem(view, id) {
   if (!confirm("ต้องการลบรายการนี้ใช่ไหม")) return;
   state[view] = state[view].filter((row) => row.id !== id);
-  saveState();
+  try {
+    await saveState({ immediate: true });
+  } catch (error) {
+    console.warn(error.message);
+    alert("บันทึกการลบขึ้น Supabase ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง");
+  }
   if (view === "serviceCatalog") currentView = "courses";
   render();
 }
