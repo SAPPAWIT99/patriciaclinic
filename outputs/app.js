@@ -310,8 +310,8 @@ function table(columns, rows, view) {
       : "";
     return `<tr>${cells}<td><div class="table-actions">
       ${deductButton}
-      <button title="แก้ไข" aria-label="แก้ไข" data-action="edit" data-view="${view}" data-id="${row.id}">${icons.edit}</button>
-      <button class="danger" title="ลบ" aria-label="ลบ" data-action="delete" data-view="${view}" data-id="${row.id}">${icons.trash}</button>
+      <button class="action-button edit-action" title="แก้ไข" aria-label="แก้ไข" data-action="edit" data-view="${view}" data-id="${row.id}">${icons.edit}<span>แก้</span></button>
+      <button class="action-button danger delete-action" title="ลบ" aria-label="ลบ" data-action="delete" data-view="${view}" data-id="${row.id}">${icons.trash}<span>ลบ</span></button>
     </div></td></tr>`;
   }).join("");
   return `<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
@@ -836,9 +836,9 @@ function renderPatientsTable(rows) {
       <td>${badge(`${totalCourseRemaining(patient.name)} ครั้งคงเหลือ`)}</td>
       <td>
         <div class="table-actions">
-          <button title="ดูรายละเอียด" aria-label="ดูรายละเอียด" data-action="viewPatient" data-id="${patient.id}">${icons.eye}</button>
-          <button title="แก้ไข" aria-label="แก้ไข" data-action="edit" data-view="patients" data-id="${patient.id}">${icons.edit}</button>
-          <button class="danger" title="ลบ" aria-label="ลบ" data-action="delete" data-view="patients" data-id="${patient.id}">${icons.trash}</button>
+          <button class="action-button view-action" title="ดูรายละเอียด" aria-label="ดูรายละเอียด" data-action="viewPatient" data-id="${patient.id}">${icons.eye}<span>ดู</span></button>
+          <button class="action-button edit-action" title="แก้ไข" aria-label="แก้ไข" data-action="edit" data-view="patients" data-id="${patient.id}">${icons.edit}<span>แก้</span></button>
+          <button class="action-button danger delete-action" title="ลบ" aria-label="ลบ" data-action="delete" data-view="patients" data-id="${patient.id}">${icons.trash}<span>ลบ</span></button>
         </div>
       </td>
     </tr>`).join("");
@@ -918,7 +918,7 @@ function renderPatientCourses(courses) {
     <div class="course-item-actions">
       ${badge(courseStatus(course))}
       <button class="deduct-button course-deduct-action" title="ตัดคอร์ส / ใช้บริการ" aria-label="ตัดคอร์ส / ใช้บริการ" data-action="deduct" data-id="${course.id}" ${courseRemaining(course) <= 0 ? "disabled" : ""}>${icons.deduct}<span>ตัดคอร์ส / ใช้บริการ</span></button>
-      <button class="danger icon-button" title="ลบคอร์ส" aria-label="ลบคอร์ส" data-action="delete" data-view="courses" data-id="${course.id}">${icons.trash}</button>
+      <button class="action-button danger delete-action" title="ลบคอร์ส" aria-label="ลบคอร์ส" data-action="delete" data-view="courses" data-id="${course.id}">${icons.trash}<span>ลบ</span></button>
     </div>
   </article>`).join("")}</div>`;
 }
@@ -1009,8 +1009,8 @@ function renderServiceCard(item) {
     <div class="service-price">${money(item.price)}</div>
     <p>${Number(item.sessions || 1)} ครั้ง</p>
     <div class="table-actions service-actions">
-      <button title="แก้ไข" aria-label="แก้ไข" data-action="edit" data-view="serviceCatalog" data-id="${item.id}">${icons.edit}</button>
-      <button class="danger" title="ลบ" aria-label="ลบ" data-action="delete" data-view="serviceCatalog" data-id="${item.id}">${icons.trash}</button>
+      <button class="action-button edit-action" title="แก้ไข" aria-label="แก้ไข" data-action="edit" data-view="serviceCatalog" data-id="${item.id}">${icons.edit}<span>แก้</span></button>
+      <button class="action-button danger delete-action" title="ลบ" aria-label="ลบ" data-action="delete" data-view="serviceCatalog" data-id="${item.id}">${icons.trash}<span>ลบ</span></button>
     </div>
   </article>`;
 }

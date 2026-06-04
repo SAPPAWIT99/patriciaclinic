@@ -2005,13 +2005,59 @@ tr:last-child td {
 .table-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .table-actions button {
-  width: 34px;
-  min-width: 34px;
-  min-height: 34px;
+  min-height: 38px;
+  min-width: 64px;
+  padding: 0 10px;
+  font-weight: 900;
+}
+
+.table-actions .action-button {
+  width: auto;
+}
+
+.action-button span {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.action-button svg,
+.table-actions .deduct-button svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
+
+.view-action {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.view-action:hover {
+  background: #bae6fd;
+}
+
+.edit-action {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.edit-action:hover {
+  background: #bfdbfe;
+}
+
+.delete-action {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.delete-action:hover {
+  background: #fecaca;
+  color: #7f1d1d;
 }
 
 .table-actions button:disabled {
