@@ -598,7 +598,6 @@ function renderDashboard() {
       </div>
       <button data-view="queue">${icons.queue}จัดการคิว</button>
     </section>
-    ${renderClinicShowcase()}
     <section class="dashboard-controls panel">
       <div>
         <h2>สรุปการเงิน ${periodLabel(dashboardPeriod)}</h2>
