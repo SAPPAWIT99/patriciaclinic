@@ -1848,9 +1848,19 @@ h1 {
 .chart-bar {
   height: 250px;
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 22px 1fr auto;
   justify-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.chart-bar b {
+  min-height: 20px;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  align-self: end;
 }
 
 .chart-bar i {
@@ -3242,6 +3252,15 @@ td {
 
 .weekly-sales-panel .chart-bar {
   height: 248px;
+}
+
+.weekly-sales-panel .chart-bar b {
+  color: #0369a1;
+  background: rgba(224, 242, 254, 0.86);
+  border: 1px solid rgba(125, 211, 252, 0.55);
+  border-radius: 999px;
+  padding: 4px 7px;
+  box-shadow: 0 8px 16px rgba(37, 99, 235, 0.08);
 }
 
 .weekly-sales-panel .chart-bar i {

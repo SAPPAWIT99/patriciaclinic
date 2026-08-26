@@ -417,7 +417,7 @@ function renderSalesBarChart(bills, period) {
     <div class="chart-axis">${axisLabels.map((label) => `<span>${label}</span>`).join("")}</div>
     <div class="chart-bars">
       ${targetLine}
-      ${totals.map((item) => `<div class="chart-bar"><i style="height:${Math.max((item.amount / max) * 100, item.amount ? 4 : 0)}%"></i><span>${escapeHtml(item.label)}</span></div>`).join("")}
+      ${totals.map((item) => `<div class="chart-bar"><b>${moneyCompact(item.amount)}</b><i style="height:${Math.max((item.amount / max) * 100, item.amount ? 4 : 0)}%"></i><span>${escapeHtml(item.label)}</span></div>`).join("")}
     </div>
   </div>`;
 }
