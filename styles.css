@@ -2168,6 +2168,62 @@ tr:last-child td {
   gap: 11px;
 }
 
+.trend-chart {
+  width: 100%;
+  min-height: 320px;
+  overflow-x: auto;
+  padding: 8px 0 0;
+}
+
+.trend-chart svg {
+  width: 100%;
+  min-width: 760px;
+  height: 320px;
+  display: block;
+}
+
+.trend-grid line {
+  stroke: #dbeafe;
+  stroke-width: 1;
+  stroke-dasharray: 5 7;
+}
+
+.trend-area {
+  fill: url("#trendFill");
+}
+
+.trend-line {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 8px 12px rgba(37, 99, 235, 0.18));
+}
+
+.trend-point circle {
+  fill: #ffffff;
+  stroke: #0ea5e9;
+  stroke-width: 4;
+}
+
+.trend-point text {
+  fill: #1d4ed8;
+  font-size: 13px;
+  font-weight: 900;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.88);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+.trend-point .trend-label {
+  fill: #7890ad;
+  font-size: 12px;
+  stroke-width: 4px;
+}
+
 .bar-row {
   display: grid;
   grid-template-columns: 52px minmax(120px, 1fr) 110px;
@@ -3240,13 +3296,35 @@ td {
   color: #0369a1;
 }
 
+.chart-range-select {
+  display: grid;
+  gap: 4px;
+  color: #7890ad;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.chart-range-select select {
+  min-height: 36px;
+  min-width: 98px;
+  border: 1px solid #bae6fd;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 4px 12px;
+  font-weight: 900;
+  outline: 0;
+}
+
 .weekly-sales-panel .sales-chart {
   min-height: 286px;
+  overflow-x: auto;
 }
 
 .weekly-sales-panel .chart-bars {
+  min-width: var(--weekly-chart-width, 720px);
   min-height: 248px;
-  gap: clamp(12px, 3vw, 34px);
+  gap: clamp(10px, 2vw, 26px);
   background: repeating-linear-gradient(to top, transparent 0, transparent 53px, rgba(191, 219, 254, 0.58) 54px);
 }
 

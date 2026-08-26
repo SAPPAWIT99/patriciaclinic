@@ -118,6 +118,7 @@ let selectedPatientId = null;
 let patientDetailTab = "records";
 let dashboardPeriod = "day";
 let dashboardPaymentMethod = "ทั้งหมด";
+let weeklySalesDays = 7;
 
 const navEl = document.querySelector("#nav");
 const contentEl = document.querySelector("#content");
@@ -351,6 +352,18 @@ function billsForPeriod(period) {
   });
 }
 
+function billsForLastDays(days) {
+  const range = Number(days || 7);
+  return state.billing.filter((item) => {
+    if (!item.date) return false;
+    const bill = new Date(`${item.date}T00:00:00`);
+    const start = new Date(today);
+    start.setDate(today.getDate() - (range - 1));
+    start.setHours(0, 0, 0, 0);
+    return bill >= start && bill <= today;
+  });
+}
+
 function paymentMethods() {
   return ["ทั้งหมด", ...new Set(state.billing.map((item) => item.paymentMethod || "ไม่ระบุ"))];
 }
@@ -382,6 +395,19 @@ function chartLabelsForPeriod(period) {
   });
 }
 
+function chartLabelsForLastDays(days) {
+  const range = Number(days || 7);
+  return Array.from({ length: range }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (range - 1 - index));
+    const key = date.toISOString().slice(0, 10);
+    const label = range > 15
+      ? date.toLocaleDateString("th-TH", { day: "numeric", month: "short" })
+      : date.toLocaleDateString("th-TH", { weekday: "short" });
+    return { key, label };
+  });
+}
+
 function billChartKey(dateString, period) {
   if (period === "day" || period === "week") return dateString;
   if (period === "month") {
@@ -398,9 +424,9 @@ function moneyCompact(value) {
   return `฿${amount}`;
 }
 
-function renderSalesBarChart(bills, period) {
+function renderSalesBarChart(bills, period, customLabels = null) {
   const monthlyTarget = 600000;
-  const labels = chartLabelsForPeriod(period);
+  const labels = customLabels || chartLabelsForPeriod(period);
   const totals = labels.map((label) => {
     const amount = bills
       .filter((item) => billChartKey(item.date, period) === label.key)
@@ -415,10 +441,56 @@ function renderSalesBarChart(bills, period) {
     : "";
   return `<div class="sales-chart">
     <div class="chart-axis">${axisLabels.map((label) => `<span>${label}</span>`).join("")}</div>
-    <div class="chart-bars">
+    <div class="chart-bars" style="--weekly-chart-width:${Math.max(labels.length * 62, 720)}px">
       ${targetLine}
       ${totals.map((item) => `<div class="chart-bar"><b>${moneyCompact(item.amount)}</b><i style="height:${Math.max((item.amount / max) * 100, item.amount ? 4 : 0)}%"></i><span>${escapeHtml(item.label)}</span></div>`).join("")}
     </div>
+  </div>`;
+}
+
+function renderSalesDaysChart(bills, days) {
+  return renderSalesBarChart(bills, "week", chartLabelsForLastDays(days));
+}
+
+function renderMonthlyTrendChart(months) {
+  const max = Math.max(...months.map((item) => item.amount), 1);
+  const width = 920;
+  const height = 300;
+  const padX = 44;
+  const padTop = 38;
+  const padBottom = 46;
+  const plotHeight = height - padTop - padBottom;
+  const step = (width - padX * 2) / Math.max(months.length - 1, 1);
+  const points = months.map((item, index) => {
+    const x = padX + step * index;
+    const y = padTop + plotHeight - (item.amount / max) * plotHeight;
+    return { ...item, x, y };
+  });
+  const path = points.map((point, index) => `${index ? "L" : "M"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
+  const area = `${path} L ${points.at(-1).x.toFixed(1)} ${height - padBottom} L ${points[0].x.toFixed(1)} ${height - padBottom} Z`;
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+    const y = padTop + plotHeight - ratio * plotHeight;
+    return `<line x1="${padX}" y1="${y}" x2="${width - padX}" y2="${y}"></line>`;
+  }).join("");
+  return `<div class="trend-chart" role="img" aria-label="เส้นเทรนด์ยอดขายรายเดือน">
+    <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="trendFill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.24"></stop>
+          <stop offset="100%" stop-color="#2563eb" stop-opacity="0.02"></stop>
+        </linearGradient>
+      </defs>
+      <g class="trend-grid">${grid}</g>
+      <path class="trend-area" d="${area}"></path>
+      <path class="trend-line" d="${path}"></path>
+      ${points.map((point) => `
+        <g class="trend-point">
+          <text x="${point.x}" y="${Math.max(point.y - 17, 14)}">${moneyCompact(point.amount)}</text>
+          <circle cx="${point.x}" cy="${point.y}" r="5"></circle>
+          <text class="trend-label" x="${point.x}" y="${height - 16}">${escapeHtml(point.label)}</text>
+        </g>
+      `).join("")}
+    </svg>
   </div>`;
 }
 
@@ -584,7 +656,7 @@ function renderDashboard() {
   const waiting = state.queue.filter((item) => item.status !== "ชำระเงิน").length;
   const todayApps = state.appointments.filter((item) => item.date === todayIso).length;
   const periodBills = filterBillsByPaymentMethod(billsForPeriod(dashboardPeriod));
-  const weeklyBills = filterBillsByPaymentMethod(billsForPeriod("week"));
+  const weeklyBills = filterBillsByPaymentMethod(billsForLastDays(weeklySalesDays));
   const paidPeriodBills = periodBills.filter((item) => item.status === "ชำระแล้ว" || Number(item.paidAmount || 0) > 0);
   const income = paidPeriodBills.reduce((sum, item) => sum + Number(item.paidAmount || item.amount || 0), 0);
   const pending = periodBills.reduce((sum, item) => sum + Math.max(Number(item.amount || 0) - Number(item.paidAmount || 0), 0), 0);
@@ -630,11 +702,15 @@ function renderDashboard() {
       <div class="panel-head">
         <div>
           <h2>ยอดขายรายสัปดาห์</h2>
-          <span class="muted">Cash Flow - 7 วันล่าสุด</span>
+          <span class="muted">Cash Flow - ${weeklySalesDays} วันล่าสุด</span>
         </div>
-        <span class="period-pill">7 วัน</span>
+        <label class="chart-range-select">ช่วง
+          <select data-action="weeklySalesDaysSelect">
+            ${[7, 15, 30].map((days) => `<option value="${days}" ${weeklySalesDays === days ? "selected" : ""}>${days} วัน</option>`).join("")}
+          </select>
+        </label>
       </div>
-      ${renderSalesBarChart(weeklyBills, "week")}
+      ${renderSalesDaysChart(weeklyBills, weeklySalesDays)}
     </section>
     <section class="grid two-col" style="margin-top:16px">
       <div class="panel sales-panel">
@@ -698,7 +774,6 @@ function renderFinanceSummary() {
     const amount = sumBills(paid.filter((item) => item.date?.slice(0, 7) === key));
     return { key, label: new Date(`${key}-01T00:00:00`).toLocaleDateString("th-TH", { month: "short" }), amount };
   });
-  const maxMonth = Math.max(...monthNames.map((item) => item.amount), 1);
   const latest = [...state.billing].sort((a, b) => billDate(b) - billDate(a)).slice(0, 8);
 
   return `
@@ -714,15 +789,7 @@ function renderFinanceSummary() {
           <h2>สรุปยอดรายเดือน ${Number(thisYear) + 543}</h2>
           <button data-view="billing" class="secondary">${icons.wallet}ดูใบเสร็จ</button>
         </div>
-        <div class="finance-chart">
-          ${monthNames.map((item) => `
-            <div class="bar-row">
-              <span>${item.label}</span>
-              <div class="bar-track"><i style="width:${Math.max((item.amount / maxMonth) * 100, item.amount ? 8 : 0)}%"></i></div>
-              <strong>${money(item.amount)}</strong>
-            </div>
-          `).join("")}
-        </div>
+        ${renderMonthlyTrendChart(monthNames)}
       </div>
       <div class="panel">
         <div class="panel-head"><h2>ภาพรวมการเก็บเงิน</h2></div>
@@ -1926,6 +1993,10 @@ contentEl.addEventListener("change", (event) => {
   }
   if (event.target.dataset.action === "dashboardPaymentSelect") {
     dashboardPaymentMethod = event.target.value;
+    render();
+  }
+  if (event.target.dataset.action === "weeklySalesDaysSelect") {
+    weeklySalesDays = Number(event.target.value || 7);
     render();
   }
 });
