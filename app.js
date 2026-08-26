@@ -39,6 +39,7 @@ const menu = [
   ["billing", "แคชเชียร์ / ซื้อคอร์ส", "ใบเสร็จและยอดค้างชำระ"],
   ["courses", "จัดการตัดคอร์ส", "ติดตามคอร์สลูกค้าและจำนวนครั้งคงเหลือ"],
   ["services", "จัดการบริการ/คอร์ส", "รายการสินค้า บริการ และแพ็กเกจคอร์ส"],
+  ["salesAnalysis", "วิเคราะห์การขาย", "บริการขายดีและยอดขายตามเดือน"],
   ["records", "เวชระเบียน", "ข้อมูลประวัติคนไข้และสุขภาพ"],
   ["financeSummary", "รายงาน & ใบเสร็จ", "ยอดรายวัน รายเดือน และรายปี"],
   ["queue", "คิวตรวจ", "จัดลำดับผู้รับบริการ"],
@@ -57,6 +58,7 @@ const menuIcons = {
   financeSummary: icons.chart,
   courses: icons.course,
   services: icons.notes,
+  salesAnalysis: icons.chart,
   inventory: icons.box,
   staff: icons.staff
 };
@@ -121,6 +123,8 @@ let patientDetailTab = "records";
 let dashboardPeriod = "day";
 let dashboardPaymentMethod = "ทั้งหมด";
 let weeklySalesDays = 7;
+let salesAnalysisYear = todayIso.slice(0, 4);
+let salesAnalysisMonths = [];
 
 const navEl = document.querySelector("#nav");
 const contentEl = document.querySelector("#content");
@@ -805,6 +809,172 @@ function renderFinanceSummary() {
     <section class="panel" style="margin-top:16px">
       <div class="panel-head"><h2>รายการการเงินล่าสุด</h2></div>
       ${table(viewConfig.billing.columns, latest, "billing")}
+    </section>`;
+}
+
+function salesAnalysisYears() {
+  const years = [...new Set(state.billing.map((bill) => String(bill.date || "").slice(0, 4)).filter(Boolean))].sort();
+  return years.length ? years : [todayIso.slice(0, 4)];
+}
+
+function salesAnalysisMonthKeys() {
+  const keys = Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
+  return salesAnalysisMonths.length ? salesAnalysisMonths : keys;
+}
+
+function monthLabel(month) {
+  return new Date(`${salesAnalysisYear}-${month}-01T00:00:00`).toLocaleDateString("th-TH", { month: "short" });
+}
+
+function billIsSalesSource(bill) {
+  const itemText = String(bill.item || "");
+  if (bill.importedFrom === "course-balance-excel") return false;
+  return !/รับชำระยอดค้าง|ยอดค้างคอร์ส|ยอดค้าง/.test(itemText);
+}
+
+function salesLineItemsForBill(bill) {
+  if (!billIsSalesSource(bill)) return [];
+  const billAmount = Number(bill.amount || bill.paidAmount || 0);
+  const items = Array.isArray(bill.items) ? bill.items : [];
+  if (items.length) {
+    return items
+      .map((item) => {
+        const name = String(item.name || item.service || item.title || "").trim();
+        const quantity = Math.max(Number(item.quantity || item.qty || 1), 1);
+        const price = Number(item.price || item.amount || item.total || 0);
+        return { name, quantity, amount: price ? price * quantity : billAmount };
+      })
+      .filter((item) => item.name && !/รับชำระยอดค้าง|ยอดค้างคอร์ส|ยอดค้าง/.test(item.name));
+  }
+  const name = String(bill.item || "ไม่ระบุบริการ").replace(/\s+x\d+$/i, "").trim();
+  return name ? [{ name, quantity: 1, amount: billAmount }] : [];
+}
+
+function salesAnalysisBills() {
+  const months = new Set(salesAnalysisMonthKeys());
+  return state.billing.filter((bill) => {
+    const date = String(bill.date || "");
+    return billIsSalesSource(bill) && date.slice(0, 4) === salesAnalysisYear && months.has(date.slice(5, 7));
+  });
+}
+
+function salesServiceRows(bills) {
+  const grouped = new Map();
+  for (const bill of bills) {
+    for (const item of salesLineItemsForBill(bill)) {
+      const current = grouped.get(item.name) || { service: item.name, count: 0, revenue: 0 };
+      current.count += item.quantity;
+      current.revenue += item.amount;
+      grouped.set(item.name, current);
+    }
+  }
+  return [...grouped.values()].sort((a, b) => b.count - a.count || b.revenue - a.revenue || a.service.localeCompare(b.service, "th"));
+}
+
+function salesCustomerRows(bills) {
+  const grouped = new Map();
+  for (const bill of bills) {
+    const patient = String(bill.patient || "ไม่ระบุลูกค้า").trim();
+    const lineItems = salesLineItemsForBill(bill);
+    const count = lineItems.reduce((sum, item) => sum + item.quantity, 0) || 1;
+    const current = grouped.get(patient) || { patient, visits: 0, revenue: 0 };
+    current.visits += count;
+    current.revenue += Number(bill.paidAmount || bill.amount || 0);
+    grouped.set(patient, current);
+  }
+  return [...grouped.values()].filter((row) => row.visits > 1).sort((a, b) => b.visits - a.visits || b.revenue - a.revenue).slice(0, 12);
+}
+
+function monthlyServiceSummary(bills) {
+  return salesAnalysisMonthKeys().map((month) => {
+    const rows = salesServiceRows(bills.filter((bill) => String(bill.date || "").slice(5, 7) === month));
+    const totalCount = rows.reduce((sum, row) => sum + row.count, 0);
+    const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
+    return { month, rows, top: rows[0], totalCount, totalRevenue };
+  });
+}
+
+function renderAnalysisBarChart(rows, valueKey, labelKey, emptyText) {
+  if (!rows.length) return `<p class="muted">${emptyText}</p>`;
+  const max = Math.max(...rows.map((row) => Number(row[valueKey] || 0)), 1);
+  return `<div class="analysis-bars">
+    ${rows.map((row, index) => {
+      const value = Number(row[valueKey] || 0);
+      return `<article>
+        <div class="analysis-rank">${index + 1}</div>
+        <div class="analysis-bar-copy">
+          <strong>${escapeHtml(row[labelKey])}</strong>
+          <span>${value.toLocaleString("th-TH")} ครั้ง · ${money(row.revenue || 0)}</span>
+        </div>
+        <div class="analysis-bar-track"><i style="width:${Math.max((value / max) * 100, value ? 5 : 0)}%"></i></div>
+        <b>${value.toLocaleString("th-TH")}</b>
+      </article>`;
+    }).join("")}
+  </div>`;
+}
+
+function renderSalesAnalysis() {
+  const years = salesAnalysisYears();
+  if (!years.includes(salesAnalysisYear)) salesAnalysisYear = years.at(-1);
+  const monthKeys = salesAnalysisMonthKeys();
+  const bills = salesAnalysisBills();
+  const serviceRows = salesServiceRows(bills);
+  const repeatCustomers = salesCustomerRows(bills);
+  const monthlyRows = monthlyServiceSummary(bills);
+  const totalSold = serviceRows.reduce((sum, row) => sum + row.count, 0);
+  const totalRevenue = serviceRows.reduce((sum, row) => sum + row.revenue, 0);
+  const monthButtons = Array.from({ length: 12 }, (_, index) => {
+    const month = String(index + 1).padStart(2, "0");
+    const active = !salesAnalysisMonths.length || salesAnalysisMonths.includes(month);
+    return `<button class="${active ? "active" : ""}" data-action="salesMonthToggle" data-month="${month}">${monthLabel(month)}</button>`;
+  }).join("");
+
+  return `
+    <section class="analysis-hero">
+      <div>
+        <span>SALES ANALYTICS</span>
+        <h2>วิเคราะห์การขาย</h2>
+        <p>ดูบริการขายดี ช่วงเดือนที่ขายได้มาก และลูกค้าที่กลับมารับบริการซ้ำ</p>
+      </div>
+      <div class="analysis-filters">
+        <label>ปี
+          <select data-action="salesYearSelect">
+            ${years.map((year) => `<option value="${year}" ${salesAnalysisYear === year ? "selected" : ""}>${Number(year) + 543}</option>`).join("")}
+          </select>
+        </label>
+        <button type="button" class="secondary" data-action="salesAllMonths">ทั้งปี</button>
+      </div>
+    </section>
+    <section class="analysis-month-picker">
+      ${monthButtons}
+    </section>
+    <section class="grid stats">
+      ${stat("จำนวนบริการที่ขาย", totalSold.toLocaleString("th-TH"), `${bills.length} ใบเสร็จในช่วงที่เลือก`)}
+      ${stat("ยอดขายรวม", money(totalRevenue), `${monthKeys.length} เดือนที่เลือก`)}
+      ${stat("บริการขายดีที่สุด", serviceRows[0]?.service ? escapeHtml(serviceRows[0].service) : "-", serviceRows[0] ? `${serviceRows[0].count} ครั้ง` : "ยังไม่มีข้อมูล")}
+      ${stat("ลูกค้ากลับมาซ้ำ", repeatCustomers.length, "นับลูกค้าที่มีมากกว่า 1 ครั้ง")}
+    </section>
+    <section class="grid two-col analysis-grid" style="margin-top:16px">
+      <div class="panel analysis-panel">
+        <div class="panel-head"><div><h2>บริการขายดีที่สุด</h2><span class="muted">เรียงตามจำนวนครั้งที่ขายได้</span></div></div>
+        ${renderAnalysisBarChart(serviceRows.slice(0, 12), "count", "service", "ยังไม่มีข้อมูลบริการในช่วงที่เลือก")}
+      </div>
+      <div class="panel analysis-panel">
+        <div class="panel-head"><div><h2>ลูกค้ากลับมารับบริการซ้ำ</h2><span class="muted">เรียงตามจำนวนครั้งในช่วงที่เลือก</span></div></div>
+        ${renderAnalysisBarChart(repeatCustomers, "visits", "patient", "ยังไม่มีลูกค้าที่กลับมาซ้ำในช่วงที่เลือก")}
+      </div>
+    </section>
+    <section class="panel analysis-panel" style="margin-top:16px">
+      <div class="panel-head"><div><h2>บริการขายดีรายเดือน</h2><span class="muted">ดูว่าเดือนไหนขายบริการไหนได้กี่ครั้ง</span></div></div>
+      <div class="monthly-service-grid">
+        ${monthlyRows.map((month) => `<article>
+          <div>
+            <strong>${monthLabel(month.month)}</strong>
+            <span>${month.totalCount.toLocaleString("th-TH")} ครั้ง · ${money(month.totalRevenue)}</span>
+          </div>
+          ${month.top ? `<b>${escapeHtml(month.top.service)}</b><small>${month.top.count.toLocaleString("th-TH")} ครั้ง</small>` : `<b>-</b><small>ไม่มีรายการ</small>`}
+        </article>`).join("")}
+      </div>
     </section>`;
 }
 
@@ -2074,6 +2244,7 @@ function render() {
   else if (currentView === "financeSummary") contentEl.innerHTML = renderFinanceSummary();
   else if (currentView === "courses") contentEl.innerHTML = renderCourseDeductionManager();
   else if (currentView === "services") contentEl.innerHTML = renderServiceCatalogManager();
+  else if (currentView === "salesAnalysis") contentEl.innerHTML = renderSalesAnalysis();
   else contentEl.innerHTML = renderListView(currentView);
 }
 
@@ -2096,6 +2267,19 @@ contentEl.addEventListener("click", (event) => {
   }
   if (button.dataset.action === "dashboardPeriod") {
     dashboardPeriod = button.dataset.period;
+    render();
+  }
+  if (button.dataset.action === "salesAllMonths") {
+    salesAnalysisMonths = [];
+    render();
+  }
+  if (button.dataset.action === "salesMonthToggle") {
+    const month = button.dataset.month;
+    const current = salesAnalysisMonths.length ? [...salesAnalysisMonths] : Array.from({ length: 12 }, (_, index) => String(index + 1).padStart(2, "0"));
+    salesAnalysisMonths = current.includes(month)
+      ? current.filter((item) => item !== month)
+      : [...current, month].sort();
+    if (salesAnalysisMonths.length === 12) salesAnalysisMonths = [];
     render();
   }
   if (button.dataset.action === "add") openForm(button.dataset.view);
@@ -2174,11 +2358,15 @@ contentEl.addEventListener("change", (event) => {
     weeklySalesDays = Number(event.target.value || 7);
     render();
   }
+  if (event.target.dataset.action === "salesYearSelect") {
+    salesAnalysisYear = event.target.value;
+    render();
+  }
 });
 
 document.querySelector("#globalSearch").addEventListener("input", (event) => {
   searchTerm = event.target.value.trim();
-  if (currentView === "dashboard" || currentView === "ownerSummary" || currentView === "financeSummary") currentView = "patients";
+  if (currentView === "dashboard" || currentView === "ownerSummary" || currentView === "financeSummary" || currentView === "salesAnalysis") currentView = "patients";
   render();
 });
 

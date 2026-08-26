@@ -1959,6 +1959,215 @@ h1 {
   font-weight: 800;
 }
 
+.analysis-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 22px;
+  border: 1px solid #bfdbfe;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, #ffffff, #eef6ff),
+    radial-gradient(circle at 92% 14%, rgba(14, 165, 233, 0.16), transparent 30%);
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.1);
+}
+
+.analysis-hero span {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.analysis-hero h2 {
+  margin: 2px 0 4px;
+  color: #0f172a;
+  font-size: 28px;
+}
+
+.analysis-hero p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.analysis-filters {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.analysis-filters label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.analysis-filters select {
+  min-height: 40px;
+  min-width: 130px;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #fff;
+  padding: 6px 12px;
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.analysis-month-picker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.analysis-month-picker button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #64748b;
+  font-weight: 900;
+}
+
+.analysis-month-picker button.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+}
+
+.analysis-grid {
+  align-items: stretch;
+}
+
+.analysis-panel {
+  min-width: 0;
+}
+
+.analysis-bars {
+  display: grid;
+  gap: 10px;
+}
+
+.analysis-bars article {
+  display: grid;
+  grid-template-columns: 34px minmax(160px, 1fr) minmax(140px, 0.9fr) 52px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fff, #f8fbff);
+}
+
+.analysis-rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 900;
+}
+
+.analysis-bar-copy {
+  min-width: 0;
+}
+
+.analysis-bar-copy strong,
+.analysis-bar-copy span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysis-bar-copy strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.analysis-bar-copy span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.analysis-bar-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e0f2fe;
+}
+
+.analysis-bar-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #38bdf8, #2563eb);
+}
+
+.analysis-bars article > b {
+  color: #1d4ed8;
+  text-align: right;
+  font-size: 16px;
+}
+
+.monthly-service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.monthly-service-grid article {
+  display: grid;
+  gap: 8px;
+  min-height: 128px;
+  padding: 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #f8fbff;
+}
+
+.monthly-service-grid article div {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.monthly-service-grid strong {
+  color: #1d4ed8;
+  font-size: 18px;
+}
+
+.monthly-service-grid span,
+.monthly-service-grid small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.monthly-service-grid b {
+  color: #0f172a;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 .panel {
   padding: 16px;
 }
@@ -3731,6 +3940,36 @@ td {
 
   .sidebar-footer {
     display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .analysis-hero,
+  .analysis-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .analysis-filters label,
+  .analysis-filters button {
+    width: 100%;
+  }
+
+  .analysis-month-picker {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .analysis-month-picker button {
+    flex: 0 0 auto;
+  }
+
+  .analysis-bars article {
+    grid-template-columns: 32px minmax(0, 1fr) 46px;
+  }
+
+  .analysis-bar-track {
+    grid-column: 2 / -1;
   }
 }
 
