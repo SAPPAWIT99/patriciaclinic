@@ -2400,6 +2400,25 @@ tr:last-child td {
   gap: 10px;
 }
 
+.transaction-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.transaction-item > div {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.receipt-view-button {
+  min-height: 38px;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+
 .finance-chart {
   display: grid;
   gap: 11px;

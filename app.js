@@ -1263,17 +1263,70 @@ function renderPatientCourses(courses, patientName) {
 function renderPatientHistory(patient, records, courses) {
   const bills = state.billing.filter((item) => item.patient === patient.name);
   const rows = [
-    ...bills.map((item) => ({ date: item.date, text: `${item.item} · ${money(item.amount)}`, type: item.status })),
+    ...bills.map((item) => ({ date: item.date, text: `${item.item} · ${money(item.amount)}`, type: item.status, billId: item.id })),
     ...courses.map((item) => ({ date: item.startDate, text: `ซื้อคอร์ส ${item.course}`, type: courseStatus(item) })),
     ...records.map((item) => ({ date: item.date, text: `บันทึกเวชระเบียน`, type: "ข้อมูล" }))
   ].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   if (!rows.length) return emptyState();
-  return `<div class="timeline">${rows.map((row) => `<article class="timeline-item"><strong>${escapeHtml(row.date || "-")}</strong><span>${escapeHtml(row.text)}</span>${badge(row.type)}</article>`).join("")}</div>`;
+  return `<div class="timeline">${rows.map((row) => `<article class="timeline-item transaction-item">
+    <div>
+      <strong>${escapeHtml(row.date || "-")}</strong>
+      <span>${escapeHtml(row.text)}</span>
+      ${badge(row.type)}
+    </div>
+    ${row.billId ? `<button class="action-button view-action receipt-view-button" title="ดูใบเสร็จ" aria-label="ดูใบเสร็จ" data-action="viewReceipt" data-id="${escapeHtml(row.billId)}">${icons.notes}<span>ดูใบเสร็จ</span></button>` : ""}
+  </article>`).join("")}</div>`;
 }
 
 function renderPatientAppointments(appointments) {
   if (!appointments.length) return emptyState();
   return `<div class="timeline">${appointments.map((item) => `<article class="timeline-item"><strong>${escapeHtml(item.date)} · ${escapeHtml(item.time)}</strong><span>${escapeHtml(item.service)} · ${escapeHtml(item.doctor)}</span>${badge(item.status)}</article>`).join("")}</div>`;
+}
+
+function receiptItemsFromBill(bill) {
+  const items = Array.isArray(bill.items) ? bill.items : [];
+  if (items.length) {
+    return items.map((item) => {
+      const qty = Math.max(Number(item.quantity || item.qty || 1), 1);
+      const lineAmount = Number(item.price || item.amount || item.total || 0);
+      return {
+        selected: {
+          name: String(item.name || item.service || bill.item || "รายการ"),
+          price: lineAmount || Number(bill.amount || 0) / qty,
+          sessions: Number(item.sessions || item.total_units || 1)
+        },
+        qty
+      };
+    });
+  }
+  return [{
+    selected: {
+      name: String(bill.item || "รายการ"),
+      price: Number(bill.subtotal || bill.amount || 0),
+      sessions: 1
+    },
+    qty: 1
+  }];
+}
+
+function openReceiptFromBill(id) {
+  const bill = state.billing.find((item) => item.id === id);
+  if (!bill) return;
+  const patient = patientByName(bill.patient);
+  modalTitle.textContent = "ใบเสร็จรับเงิน";
+  modalFields.onclick = null;
+  modalFields.oninput = null;
+  modalFields.innerHTML = renderReceipt(patient, receiptItemsFromBill(bill), bill);
+  modalFields.onclick = (receiptEvent) => {
+    if (receiptEvent.target.closest('[data-action="printReceipt"]')) window.print();
+    if (receiptEvent.target.closest('[data-action="saveReceiptImage"]')) saveReceiptAsImage();
+  };
+  modalSave.textContent = "ปิด";
+  modalSave.onclick = (closeEvent) => {
+    closeEvent.preventDefault();
+    modal.close();
+  };
+  modal.showModal();
 }
 
 function nextPatientId() {
@@ -2326,6 +2379,7 @@ contentEl.addEventListener("click", (event) => {
     render();
   }
   if (button.dataset.action === "payOutstandingCourse") openPayOutstandingCourse(button.dataset.id);
+  if (button.dataset.action === "viewReceipt") openReceiptFromBill(button.dataset.id);
   if (button.dataset.action === "deduct") openDeductCourse(button.dataset.id);
   if (button.dataset.action === "edit") openForm(button.dataset.view, button.dataset.id);
   if (button.dataset.action === "delete") removeItem(button.dataset.view, button.dataset.id);
