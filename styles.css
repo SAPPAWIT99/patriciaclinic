@@ -3274,6 +3274,116 @@ td {
   min-height: 210px;
 }
 
+.course-manager-hero {
+  margin-bottom: 16px;
+}
+
+.course-manager-stats {
+  margin-bottom: 16px;
+}
+
+.course-manager-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.course-manager-toolbar {
+  align-items: stretch;
+}
+
+.course-manager-toolbar .catalog-search {
+  flex: 1 1 360px;
+  min-width: 240px;
+}
+
+.course-manager-toolbar .filters {
+  align-items: center;
+}
+
+.course-manager-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 14px;
+}
+
+.course-manager-card {
+  min-width: 0;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: 0 14px 30px rgba(37, 99, 235, 0.08);
+  display: grid;
+  gap: 12px;
+}
+
+.course-manager-card.pending-payment {
+  border-color: #fecaca;
+  background: #fff8f8;
+  box-shadow: inset 4px 0 0 #ef4444, 0 14px 30px rgba(239, 68, 68, 0.08);
+}
+
+.course-card-head {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.course-card-head strong,
+.course-card-head small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.course-card-head small {
+  margin-top: 2px;
+  color: #7f96b3;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.course-card-body {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.course-card-body div {
+  border-radius: 10px;
+  background: #f3f8ff;
+  padding: 9px;
+  display: grid;
+  gap: 2px;
+}
+
+.course-card-body span {
+  color: #7890ad;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.course-card-body strong {
+  color: #172033;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.course-manager-card .course-progress {
+  width: 100%;
+  min-width: 0;
+}
+
+.course-manager-card .course-item-actions {
+  justify-content: flex-start;
+}
+
+.course-manager-card .course-deduct-action {
+  min-width: 150px;
+}
+
 .weekly-sales-panel {
   min-height: 360px;
   padding: 22px 22px 26px;

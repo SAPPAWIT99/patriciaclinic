@@ -38,7 +38,8 @@ const menu = [
   ["appointments", "นัดหมาย", "ตารางนัดและการติดตาม"],
   ["billing", "แคชเชียร์ / ซื้อคอร์ส", "ใบเสร็จและยอดค้างชำระ"],
   ["courses", "จัดการตัดคอร์ส", "ติดตามคอร์สลูกค้าและจำนวนครั้งคงเหลือ"],
-  ["records", "จัดการบริการ/คอร์ส", "ข้อมูลประวัติคนไข้และสุขภาพ"],
+  ["services", "จัดการบริการ/คอร์ส", "รายการสินค้า บริการ และแพ็กเกจคอร์ส"],
+  ["records", "เวชระเบียน", "ข้อมูลประวัติคนไข้และสุขภาพ"],
   ["financeSummary", "รายงาน & ใบเสร็จ", "ยอดรายวัน รายเดือน และรายปี"],
   ["queue", "คิวตรวจ", "จัดลำดับผู้รับบริการ"],
   ["inventory", "คลังยา", "ยา เวชภัณฑ์ และแจ้งเตือนสต็อก"],
@@ -55,6 +56,7 @@ const menuIcons = {
   billing: icons.wallet,
   financeSummary: icons.chart,
   courses: icons.course,
+  services: icons.notes,
   inventory: icons.box,
   staff: icons.staff
 };
@@ -1130,7 +1132,7 @@ function catalogRows() {
   return state.serviceCatalog;
 }
 
-function renderServicesAndCourses() {
+function renderServiceCatalogManager() {
   const categories = ["ทั้งหมด", ...new Set(catalogRows().map((item) => item.category))];
   const query = searchTerm.toLowerCase();
   const rows = catalogRows().filter((item) => {
@@ -1142,7 +1144,7 @@ function renderServicesAndCourses() {
     <section class="service-hero">
       <div class="patient-hero-icon">${icons.course}</div>
       <div>
-        <h2>บริการ & คอร์ส</h2>
+        <h2>จัดการบริการ/คอร์ส</h2>
         <p>${catalogRows().length} รายการทั้งหมด</p>
       </div>
       <button data-action="add" data-view="serviceCatalog">${icons.plus}เพิ่มรายการ</button>
@@ -1156,14 +1158,91 @@ function renderServicesAndCourses() {
         ${categories.map((category) => `<button class="${activeFilter === category ? "active" : ""}" data-action="catalogFilter" data-filter="${category}">${escapeHtml(category)} <span>${category === "ทั้งหมด" ? catalogRows().length : catalogRows().filter((item) => item.category === category).length}</span></button>`).join("")}
       </div>
       <div class="service-grid">${rows.map(renderServiceCard).join("") || emptyState()}</div>
-    </section>
-    <section class="panel" style="margin-top:18px">
-      <div class="panel-head">
-        <h2>คอร์สที่ลูกค้าซื้อแล้ว</h2>
-        <button data-action="add" data-view="courses">${icons.plus}เพิ่มคอร์สลูกค้า</button>
-      </div>
-      ${table(viewConfig.courses.columns, state.courses.filter(matchesSearch), "courses")}
     </section>`;
+}
+
+function renderCourseDeductionManager() {
+  const filters = ["ทั้งหมด", "ใช้งานอยู่", "ใกล้หมด", "ใช้ครบแล้ว", "พักคอร์ส"];
+  const query = searchTerm.toLowerCase();
+  const rows = state.courses.filter((course) => {
+    const status = courseStatus(course);
+    const matchFilter = activeFilter === "ทั้งหมด" || status === activeFilter;
+    const matchSearch = !query || `${course.patient} ${course.course} ${course.service} ${course.id}`.toLowerCase().includes(query);
+    return matchFilter && matchSearch;
+  });
+  const active = state.courses.filter((course) => courseStatus(course) === "ใช้งานอยู่").length;
+  const nearEnd = state.courses.filter((course) => courseStatus(course) === "ใกล้หมด").length;
+  const depleted = state.courses.filter((course) => courseStatus(course) === "ใช้ครบแล้ว").length;
+  const totalRemaining = state.courses.reduce((sum, course) => sum + courseRemaining(course), 0);
+  return `
+    <section class="service-hero course-manager-hero">
+      <div class="patient-hero-icon">${icons.course}</div>
+      <div>
+        <h2>จัดการตัดคอร์ส</h2>
+        <p>ติดตามคอร์สคงเหลือและบันทึกการใช้บริการของลูกค้า</p>
+      </div>
+      <button data-action="add" data-view="courses">${icons.plus}เพิ่มคอร์สลูกค้า</button>
+    </section>
+    <section class="grid stats course-manager-stats">
+      ${stat("คอร์สใช้งานอยู่", active, "พร้อมตัดคอร์ส")}
+      ${stat("คอร์สใกล้หมด", nearEnd, "ควรแจ้งลูกค้า")}
+      ${stat("ใช้ครบแล้ว", depleted, "ปิดการใช้งาน")}
+      ${stat("จำนวนครั้งคงเหลือ", totalRemaining, "รวมทุกคอร์ส")}
+    </section>
+    <section class="panel course-manager-panel">
+      <div class="toolbar course-manager-toolbar">
+        <label class="catalog-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
+          <input data-action="courseSearch" value="${escapeHtml(searchTerm)}" placeholder="ค้นหาลูกค้า, HN, ชื่อคอร์ส...">
+        </label>
+        <div class="filters">${filters.map((filter) => `<button class="${filter === activeFilter ? "active" : ""}" data-filter="${filter}">${filter}</button>`).join("")}</div>
+      </div>
+      <div class="course-manager-list">
+        ${rows.map(renderCourseManagerCard).join("") || emptyState()}
+      </div>
+    </section>`;
+}
+
+function renderCourseManagerCard(course) {
+  const remaining = courseRemaining(course);
+  const total = Math.max(Number(course.total || 0), 1);
+  const used = Math.min(Number(course.used || 0), total);
+  const percent = Math.round((used / total) * 100);
+  const pendingCourseAmount = pendingBillsForCourse(course).reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
+  return `<article class="course-manager-card ${pendingCourseAmount ? "pending-payment" : ""}">
+    <div class="course-card-head">
+      <span class="avatar">${initials(course.patient)}</span>
+      <div>
+        <strong>${escapeHtml(course.patient)}</strong>
+        <small>${escapeHtml(course.id)} · ${escapeHtml(course.course)}</small>
+      </div>
+      ${badge(courseStatus(course))}
+    </div>
+    <div class="course-card-body">
+      <div>
+        <span>ใช้แล้ว</span>
+        <strong>${used}/${total}</strong>
+      </div>
+      <div>
+        <span>เหลือ</span>
+        <strong>${remaining}</strong>
+      </div>
+      <div>
+        <span>ใช้ล่าสุด</span>
+        <strong>${escapeHtml(course.lastUsedDate || "-")}</strong>
+      </div>
+    </div>
+    <div class="course-progress">
+      <div class="bar-track"><i style="width:${percent}%"></i></div>
+      <span>${escapeHtml(course.service || "-")}${pendingCourseAmount ? ` · ค้างชำระ ${money(pendingCourseAmount)}` : ""}</span>
+    </div>
+    <div class="course-item-actions">
+      ${pendingCourseAmount ? `<button class="pay-due-button" data-action="payOutstandingCourse" data-id="${course.id}">${icons.wallet}<span>ชำระค้าง</span></button>` : ""}
+      <button class="deduct-button course-deduct-action" data-action="deduct" data-id="${course.id}" ${remaining <= 0 ? "disabled" : ""}>${icons.deduct}<span>ตัดคอร์ส / ใช้บริการ</span></button>
+      <button class="action-button edit-action" data-action="edit" data-view="courses" data-id="${course.id}">${icons.edit}<span>แก้</span></button>
+      <button class="action-button danger delete-action" data-action="delete" data-view="courses" data-id="${course.id}">${icons.trash}<span>ลบ</span></button>
+    </div>
+  </article>`;
 }
 
 function renderServiceCard(item) {
@@ -1268,7 +1347,17 @@ const viewConfig = {
   serviceCatalog: {
     addLabel: "เพิ่มรายการบริการ",
     filters: [],
-    fields: [["id", "รหัสรายการ"], ["name", "ชื่อบริการ/คอร์ส"], ["category", "หมวดหมู่"], ["price", "ราคา", "number"], ["sessions", "จำนวนครั้ง", "number"], ["status", "สถานะ"]],
+    fields: [
+      ["id", "รหัสรายการ"],
+      ["name", "ชื่อสินค้า / บริการ"],
+      ["category", "หมวดหมู่"],
+      ["type", "ประเภท"],
+      ["price", "ราคา", "number"],
+      ["sessions", "จำนวนครั้ง / หน่วย", "number"],
+      ["unitType", "หน่วยนับ"],
+      ["status", "สถานะ"],
+      ["description", "รายละเอียด", "textarea"]
+    ],
     columns: [
       { label: "รายการ", key: "name" }, { label: "หมวด", key: "category" }, { label: "ราคา", key: "price", render: (row) => money(row.price) },
       { label: "จำนวนครั้ง", key: "sessions" }, { label: "สถานะ", key: "status", render: (row) => badge(row.status) }
@@ -1297,24 +1386,67 @@ const viewConfig = {
 function openForm(view, id) {
   const setup = viewConfig[view];
   const existing = id ? state[view].find((item) => item.id === id) : null;
+  const generatedId = view === "serviceCatalog" ? `SV-${String(Date.now()).slice(-6)}` : view === "courses" ? `C-${String(Date.now()).slice(-6)}` : "";
   const patientOptions = state.patients.map((patient) => (
     `<option value="${escapeHtml(patient.name)}" label="${escapeHtml(`${patient.id || "-"} · ${patient.phone || "-"}`)}"></option>`
+  )).join("");
+  const serviceCategoryOptions = ["เมโส", "Botox", "Filler", "ทรีทเม้นท์/เครื่อง", "FAT", "คอ", "ยา", "อื่นๆ", "ร้อยไหม"]
+    .map((category) => `<option value="${escapeHtml(category)}"></option>`).join("");
+  const serviceStatusOptions = ["เปิดขาย", "พักขาย", "หมด", "ซ่อน"]
+    .map((status) => `<option value="${escapeHtml(status)}"></option>`).join("");
+  const courseOptions = catalogRows().map((item) => (
+    `<option value="${escapeHtml(item.name)}" label="${escapeHtml(`${item.category || "-"} · ${money(item.price)} · ${Number(item.sessions || 1)} ครั้ง`)}"></option>`
   )).join("");
   modalFields.onclick = null;
   modalFields.oninput = null;
   modalSave.textContent = "บันทึก";
   modalTitle.textContent = existing ? `แก้ไข${setup.addLabel.replace("เพิ่ม", "")}` : setup.addLabel;
   modalFields.innerHTML = setup.fields.map(([key, label, type = "text"]) => {
-    const value = existing?.[key] ?? (!existing && view === "patients" && key === "id" ? nextPatientId() : key === "date" || key === "lastVisit" ? todayIso : "");
+    const defaultValue = !existing && view === "patients" && key === "id" ? nextPatientId()
+      : !existing && key === "id" && generatedId ? generatedId
+      : !existing && view === "serviceCatalog" && key === "sessions" ? 1
+      : !existing && view === "serviceCatalog" && key === "status" ? "เปิดขาย"
+      : !existing && view === "serviceCatalog" && key === "unitType" ? "ครั้ง"
+      : !existing && view === "serviceCatalog" && key === "category" ? "อื่นๆ"
+      : !existing && view === "courses" && key === "used" ? 0
+      : !existing && view === "courses" && key === "total" ? 1
+      : !existing && view === "courses" && key === "status" ? "ใช้งานอยู่"
+      : key === "date" || key === "lastVisit" || key === "startDate" ? todayIso
+      : "";
+    const value = existing?.[key] ?? defaultValue;
     const full = type === "textarea" ? " full" : "";
     const required = key === "nextDate" ? "" : " required";
-    const listAttr = view === "appointments" && key === "patient" ? ' list="appointmentPatientOptions" autocomplete="off"' : "";
-    const readonlyAttr = !existing && view === "patients" && key === "id" ? " readonly" : "";
+    const listAttr = view === "appointments" && key === "patient"
+      ? ' list="appointmentPatientOptions" autocomplete="off"'
+      : view === "courses" && key === "patient"
+        ? ' list="coursePatientOptions" autocomplete="off"'
+        : view === "courses" && key === "course"
+          ? ' list="courseCatalogOptions" autocomplete="off"'
+      : view === "serviceCatalog" && key === "category"
+        ? ' list="serviceCategoryOptions" autocomplete="off"'
+        : view === "serviceCatalog" && key === "status"
+          ? ' list="serviceStatusOptions" autocomplete="off"'
+          : "";
+    const readonlyAttr = !existing && key === "id" && (view === "patients" || view === "serviceCatalog" || view === "courses") ? " readonly" : "";
     const control = type === "textarea"
       ? `<textarea name="${key}"${required}>${escapeHtml(value)}</textarea>`
       : `<input name="${key}" type="${type}" value="${escapeHtml(value)}"${listAttr}${readonlyAttr}${required}>`;
     return `<div class="field${full}"><label>${label}</label>${control}</div>`;
-  }).join("") + (view === "appointments" ? `<datalist id="appointmentPatientOptions">${patientOptions}</datalist>` : "");
+  }).join("")
+    + (view === "appointments" ? `<datalist id="appointmentPatientOptions">${patientOptions}</datalist>` : "")
+    + (view === "courses" ? `<datalist id="coursePatientOptions">${patientOptions}</datalist><datalist id="courseCatalogOptions">${courseOptions}</datalist>` : "")
+    + (view === "serviceCatalog" ? `<datalist id="serviceCategoryOptions">${serviceCategoryOptions}</datalist><datalist id="serviceStatusOptions">${serviceStatusOptions}</datalist>` : "");
+  if (view === "courses") {
+    modalFields.oninput = (event) => {
+      if (event.target.name !== "course") return;
+      const picked = catalogRows().find((item) => item.name === event.target.value);
+      if (!picked) return;
+      const serviceInput = modalFields.querySelector('[name="service"]');
+      const totalInput = modalFields.querySelector('[name="total"]');
+      if (serviceInput) serviceInput.value = picked.category || picked.type || "";
+      if (totalInput) totalInput.value = Number(picked.sessions || 1);
+    };
+  }
   modalSave.onclick = (event) => {
     event.preventDefault();
     const form = new FormData(modal.querySelector("form"));
@@ -1333,7 +1465,7 @@ function openForm(view, id) {
     }
     saveState();
     modal.close();
-    if (view === "serviceCatalog") currentView = "courses";
+    if (view === "serviceCatalog") currentView = "services";
     render();
   };
   modal.showModal();
@@ -1905,7 +2037,7 @@ async function removeItem(view, id) {
     console.warn(error.message);
     alert("บันทึกการลบขึ้น Supabase ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง");
   }
-  if (view === "serviceCatalog") currentView = "courses";
+  if (view === "serviceCatalog") currentView = "services";
   render();
 }
 
@@ -1916,7 +2048,8 @@ function render() {
   else if (currentView === "ownerSummary") contentEl.innerHTML = renderTodayOwnerSummary();
   else if (currentView === "patients") contentEl.innerHTML = renderPatientsCenter();
   else if (currentView === "financeSummary") contentEl.innerHTML = renderFinanceSummary();
-  else if (currentView === "courses") contentEl.innerHTML = renderServicesAndCourses();
+  else if (currentView === "courses") contentEl.innerHTML = renderCourseDeductionManager();
+  else if (currentView === "services") contentEl.innerHTML = renderServiceCatalogManager();
   else contentEl.innerHTML = renderListView(currentView);
 }
 
@@ -1968,6 +2101,17 @@ contentEl.addEventListener("input", (event) => {
     render();
     setTimeout(() => {
       const input = contentEl.querySelector('[data-action="catalogSearch"]');
+      if (!input) return;
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    }, 0);
+    return;
+  }
+  if (event.target.dataset.action === "courseSearch") {
+    searchTerm = event.target.value.trim();
+    render();
+    setTimeout(() => {
+      const input = contentEl.querySelector('[data-action="courseSearch"]');
       if (!input) return;
       input.focus();
       input.setSelectionRange(input.value.length, input.value.length);
