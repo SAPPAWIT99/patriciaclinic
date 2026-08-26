@@ -939,6 +939,17 @@ h1 {
   cursor: pointer;
 }
 
+.buy-course-option[hidden] {
+  display: none !important;
+}
+
+.buy-search-result {
+  min-height: 18px;
+  margin-top: -6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .buy-course-option:hover {
   border-color: #2563eb;
   background: #f8fbff;
@@ -2239,6 +2250,22 @@ th {
 
 tr:last-child td {
   border-bottom: 0;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover td {
+  background: #eff6ff;
+}
+
+.clickable-row .name-cell strong {
+  color: #0f172a;
+}
+
+.clickable-row:hover .name-cell strong {
+  color: #1d4ed8;
 }
 
 .name-cell {

@@ -1135,7 +1135,7 @@ function renderPatientsCenter() {
 function renderPatientsTable(rows) {
   if (!rows.length) return emptyState();
   const body = rows.map((patient) => `
-    <tr>
+    <tr class="clickable-row" data-action="viewPatient" data-id="${patient.id}" title="เปิดรายละเอียดลูกค้า">
       <td><strong>${escapeHtml(patient.id)}</strong></td>
       <td>
         <div class="name-cell">
@@ -1755,9 +1755,10 @@ function openBuyCourse(patientId) {
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
           <input type="search" data-action="buyCourseSearch" placeholder="ค้นหาบริการ/คอร์ส...">
         </label>
+        <div class="buy-search-result muted" id="buySearchResult"></div>
         <div class="buy-course-menu">
         ${catalog.map((item, index) => `
-          <label class="buy-course-option" data-course-name="${escapeHtml(item.name.toLowerCase())}" data-course-category="${escapeHtml(item.category.toLowerCase())}">
+          <label class="buy-course-option" data-search="${escapeHtml(`${item.name} ${item.category} ${item.type || ""} ${item.description || ""} ${item.price || ""} ${item.sessions || ""}`.toLowerCase())}">
             <input type="checkbox" name="catalogId" value="${escapeHtml(item.id)}">
             <span class="service-icon">${icons.course}</span>
             <span class="buy-course-info">
@@ -1855,9 +1856,14 @@ function openBuyCourse(patientId) {
     if (event.target.name === "paidAmount") event.target.dataset.touched = "true";
     if (event.target.dataset.action === "buyCourseSearch") {
       const query = event.target.value.trim().toLowerCase();
+      let visibleCount = 0;
       modalFields.querySelectorAll(".buy-course-option").forEach((option) => {
-        option.hidden = query && !`${option.dataset.courseName} ${option.dataset.courseCategory}`.includes(query);
+        const matched = !query || String(option.dataset.search || "").includes(query);
+        option.hidden = !matched;
+        if (matched) visibleCount += 1;
       });
+      const result = modalFields.querySelector("#buySearchResult");
+      if (result) result.textContent = query ? `พบ ${visibleCount} รายการ` : "";
       return;
     }
     updateBuySummary();
@@ -2262,7 +2268,15 @@ navEl.addEventListener("click", (event) => {
 
 contentEl.addEventListener("click", (event) => {
   const button = event.target.closest("button");
-  if (!button) return;
+  if (!button) {
+    const row = event.target.closest("tr[data-action='viewPatient']");
+    if (row) {
+      selectedPatientId = row.dataset.id;
+      patientDetailTab = "records";
+      render();
+    }
+    return;
+  }
   if (button.dataset.view && !button.dataset.action) setView(button.dataset.view);
   if (button.dataset.filter) {
     activeFilter = button.dataset.filter;
