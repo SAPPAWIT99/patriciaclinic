@@ -1243,11 +1243,11 @@ function renderCourseManagerCard(course) {
     <div class="course-card-head">
       <span class="avatar">${initials(course.patient)}</span>
       <div>
-        <strong>${escapeHtml(course.patient)}</strong>
-        <small>${escapeHtml(patient.id || course.id)} · ${escapeHtml(course.id)}</small>
+        <strong title="${escapeHtml(course.patient)}">${escapeHtml(course.patient)}</strong>
+        <small title="${escapeHtml(patient.id || course.id)}">${escapeHtml(patient.id || course.id)}</small>
       </div>
     </div>
-    <h3>${escapeHtml(course.course)}</h3>
+    <h3 title="${escapeHtml(course.course)}">${escapeHtml(course.course)}</h3>
     <div class="course-card-meter">
       <div>
         <strong>${remaining}</strong>
@@ -1265,11 +1265,6 @@ function renderCourseManagerCard(course) {
     <div class="course-item-actions">
       <button class="deduct-button course-deduct-action" data-action="deduct" data-id="${course.id}" ${remaining <= 0 ? "disabled" : ""}>${icons.deduct}<span>ตัดคอร์ส</span></button>
       <button class="course-card-profile" data-action="viewCoursePatient" data-patient="${escapeHtml(course.patient)}" aria-label="เปิดข้อมูลลูกค้า">${icons.users}</button>
-    </div>
-    <div class="course-card-tools">
-      ${pendingCourseAmount ? `<button class="pay-due-button" data-action="payOutstandingCourse" data-id="${course.id}">${icons.wallet}<span>ชำระค้าง</span></button>` : ""}
-      <button class="action-button edit-action" data-action="edit" data-view="courses" data-id="${course.id}">${icons.edit}<span>แก้ไข</span></button>
-      <button class="action-button danger delete-action" data-action="delete" data-view="courses" data-id="${course.id}">${icons.trash}<span>ลบ</span></button>
     </div>
   </article>`;
 }
