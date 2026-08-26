@@ -584,6 +584,7 @@ function renderDashboard() {
   const waiting = state.queue.filter((item) => item.status !== "ชำระเงิน").length;
   const todayApps = state.appointments.filter((item) => item.date === todayIso).length;
   const periodBills = filterBillsByPaymentMethod(billsForPeriod(dashboardPeriod));
+  const weeklyBills = filterBillsByPaymentMethod(billsForPeriod("week"));
   const paidPeriodBills = periodBills.filter((item) => item.status === "ชำระแล้ว" || Number(item.paidAmount || 0) > 0);
   const income = paidPeriodBills.reduce((sum, item) => sum + Number(item.paidAmount || item.amount || 0), 0);
   const pending = periodBills.reduce((sum, item) => sum + Math.max(Number(item.amount || 0) - Number(item.paidAmount || 0), 0), 0);
@@ -625,6 +626,16 @@ function renderDashboard() {
       ${stat("นัดหมายวันนี้", todayApps, "พร้อมเข้าห้องตรวจ")}
       ${stat(`รายรับ${periodLabel(dashboardPeriod)}`, money(income), pending ? `ค้างชำระ ${money(pending)}` : "ชำระครบ")}
       ${stat("ยอดค้างชำระ", money(pending), pendingCount ? `${pendingCount} ใบเสร็จต้องติดตาม` : "ไม่มีค้างชำระ", "danger")}
+    </section>
+    <section class="panel sales-panel weekly-sales-panel" style="margin-top:16px">
+      <div class="panel-head">
+        <div>
+          <h2>ยอดขายรายสัปดาห์</h2>
+          <span class="muted">Cash Flow - 7 วันล่าสุด</span>
+        </div>
+        <span class="period-pill">7 วัน</span>
+      </div>
+      ${renderSalesBarChart(weeklyBills, "week")}
     </section>
     <section class="grid two-col" style="margin-top:16px">
       <div class="panel sales-panel">

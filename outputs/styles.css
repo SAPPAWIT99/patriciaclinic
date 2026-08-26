@@ -3208,6 +3208,54 @@ td {
   min-height: 210px;
 }
 
+.weekly-sales-panel {
+  min-height: 360px;
+  padding: 22px 22px 26px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 248, 255, 0.94)),
+    radial-gradient(circle at 88% 20%, rgba(14, 165, 233, 0.12), transparent 34%);
+  border: 1px solid rgba(147, 197, 253, 0.72);
+}
+
+.weekly-sales-panel .panel-head {
+  margin-bottom: 8px;
+}
+
+.weekly-sales-panel .panel-head h2 {
+  border-left-color: #0ea5e9;
+}
+
+.weekly-sales-panel .period-pill {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.weekly-sales-panel .sales-chart {
+  min-height: 286px;
+}
+
+.weekly-sales-panel .chart-bars {
+  min-height: 248px;
+  gap: clamp(12px, 3vw, 34px);
+  background: repeating-linear-gradient(to top, transparent 0, transparent 53px, rgba(191, 219, 254, 0.58) 54px);
+}
+
+.weekly-sales-panel .chart-bar {
+  height: 248px;
+}
+
+.weekly-sales-panel .chart-bar i {
+  width: clamp(28px, 4vw, 42px);
+  border-radius: 9px 9px 0 0;
+  background: linear-gradient(180deg, #38bdf8, #2563eb);
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.18);
+}
+
+.weekly-sales-panel .chart-axis,
+.weekly-sales-panel .chart-bar span {
+  color: #7890ad;
+}
+
 .modal {
   border-radius: 16px;
 }
