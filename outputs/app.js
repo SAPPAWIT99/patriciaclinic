@@ -2,8 +2,7 @@ const storageKey = "patriciaclinic-state-v1";
 const storageMetaKey = "patriciaclinic-state-meta-v1";
 const authKey = "patriciaclinic-auth-v1";
 const validUsers = [
-  { username: "Patricia", password: "p5559" },
-  { username: "admin@patriciabanlaem.com", password: "patriciabanlaem" }
+  { username: "patriciaclinic", password: "p5559" }
 ];
 const supabaseConfig = {
   url: "https://kdprrzocyjhrgtjajcom.supabase.co",
@@ -826,10 +825,16 @@ function monthLabel(month) {
   return new Date(`${salesAnalysisYear}-${month}-01T00:00:00`).toLocaleDateString("th-TH", { month: "short" });
 }
 
+function isNonServiceSalesItem(name) {
+  const text = String(name || "").trim().toLowerCase();
+  if (!text) return true;
+  return /bill\s*discount|discount|ส่วนลด|ส่วนลดท้ายบิล|หักส่วนลด|รับชำระ|ยอดค้าง|ค้างชำระ|adjustment|ปรับยอด|rounding|ปัดเศษ|ค่ามัดจำ|deposit/.test(text);
+}
+
 function billIsSalesSource(bill) {
   const itemText = String(bill.item || "");
   if (bill.importedFrom === "course-balance-excel") return false;
-  return !/รับชำระยอดค้าง|ยอดค้างคอร์ส|ยอดค้าง/.test(itemText);
+  return !isNonServiceSalesItem(itemText);
 }
 
 function salesLineItemsForBill(bill) {
@@ -844,10 +849,10 @@ function salesLineItemsForBill(bill) {
         const price = Number(item.price || item.amount || item.total || 0);
         return { name, quantity, amount: price ? price * quantity : billAmount };
       })
-      .filter((item) => item.name && !/รับชำระยอดค้าง|ยอดค้างคอร์ส|ยอดค้าง/.test(item.name));
+      .filter((item) => !isNonServiceSalesItem(item.name));
   }
   const name = String(bill.item || "ไม่ระบุบริการ").replace(/\s+x\d+$/i, "").trim();
-  return name ? [{ name, quantity: 1, amount: billAmount }] : [];
+  return isNonServiceSalesItem(name) ? [] : [{ name, quantity: 1, amount: billAmount }];
 }
 
 function salesAnalysisBills() {
@@ -894,20 +899,22 @@ function monthlyServiceSummary(bills) {
   });
 }
 
-function renderAnalysisBarChart(rows, valueKey, labelKey, emptyText) {
+function renderAnalysisBarChart(rows, valueKey, labelKey, emptyText, totalValue = 0) {
   if (!rows.length) return `<p class="muted">${emptyText}</p>`;
   const max = Math.max(...rows.map((row) => Number(row[valueKey] || 0)), 1);
+  const total = Number(totalValue || rows.reduce((sum, row) => sum + Number(row[valueKey] || 0), 0) || 0);
   return `<div class="analysis-bars">
     ${rows.map((row, index) => {
       const value = Number(row[valueKey] || 0);
+      const percent = total ? Math.round((value / total) * 100) : 0;
       return `<article>
         <div class="analysis-rank">${index + 1}</div>
         <div class="analysis-bar-copy">
           <strong>${escapeHtml(row[labelKey])}</strong>
-          <span>${value.toLocaleString("th-TH")} ครั้ง · ${money(row.revenue || 0)}</span>
+          <span>${value.toLocaleString("th-TH")} ครั้ง · ${percent}% · ${money(row.revenue || 0)}</span>
         </div>
         <div class="analysis-bar-track"><i style="width:${Math.max((value / max) * 100, value ? 5 : 0)}%"></i></div>
-        <b>${value.toLocaleString("th-TH")}</b>
+        <b>${percent}%</b>
       </article>`;
     }).join("")}
   </div>`;
@@ -957,7 +964,7 @@ function renderSalesAnalysis() {
     <section class="grid two-col analysis-grid" style="margin-top:16px">
       <div class="panel analysis-panel">
         <div class="panel-head"><div><h2>บริการขายดีที่สุด</h2><span class="muted">เรียงตามจำนวนครั้งที่ขายได้</span></div></div>
-        ${renderAnalysisBarChart(serviceRows.slice(0, 12), "count", "service", "ยังไม่มีข้อมูลบริการในช่วงที่เลือก")}
+        ${renderAnalysisBarChart(serviceRows.slice(0, 12), "count", "service", "ยังไม่มีข้อมูลบริการในช่วงที่เลือก", totalSold)}
       </div>
       <div class="panel analysis-panel">
         <div class="panel-head"><div><h2>ลูกค้ากลับมารับบริการซ้ำ</h2><span class="muted">เรียงตามจำนวนครั้งในช่วงที่เลือก</span></div></div>
@@ -972,7 +979,7 @@ function renderSalesAnalysis() {
             <strong>${monthLabel(month.month)}</strong>
             <span>${month.totalCount.toLocaleString("th-TH")} ครั้ง · ${money(month.totalRevenue)}</span>
           </div>
-          ${month.top ? `<b>${escapeHtml(month.top.service)}</b><small>${month.top.count.toLocaleString("th-TH")} ครั้ง</small>` : `<b>-</b><small>ไม่มีรายการ</small>`}
+          ${month.top ? `<b>${escapeHtml(month.top.service)}</b><small>${month.top.count.toLocaleString("th-TH")} ครั้ง · ${month.totalCount ? Math.round((month.top.count / month.totalCount) * 100) : 0}%</small>` : `<b>-</b><small>ไม่มีรายการ</small>`}
         </article>`).join("")}
       </div>
     </section>`;
