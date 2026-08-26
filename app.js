@@ -1,7 +1,10 @@
 const storageKey = "patriciaclinic-state-v1";
 const storageMetaKey = "patriciaclinic-state-meta-v1";
 const authKey = "patriciaclinic-auth-v1";
-const validUser = { username: "Patricia", password: "p5559" };
+const validUsers = [
+  { username: "Patricia", password: "p5559" },
+  { username: "admin@patriciabanlaem.com", password: "patriciabanlaem" }
+];
 const supabaseConfig = {
   url: "https://kdprrzocyjhrgtjajcom.supabase.co",
   anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtkcHJyem9jeWpocmd0amFqY29tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0OTc5NDYsImV4cCI6MjA5NjA3Mzk0Nn0.cPvTYtehUmlOnYcC2uHT3UUL8GZ99_vgYMR69yZO82Q",
@@ -1923,16 +1926,19 @@ document.querySelector("#globalSearch").addEventListener("input", (event) => {
   render();
 });
 
-document.querySelector("#todayLabel").textContent = today.toLocaleDateString("th-TH", {
-  weekday: "long", year: "numeric", month: "long", day: "numeric"
-});
+const todayLabel = document.querySelector("#todayLabel");
+if (todayLabel) {
+  todayLabel.textContent = today.toLocaleDateString("th-TH", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric"
+  });
+}
 
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const form = new FormData(loginForm);
   const username = String(form.get("username") || "").trim();
   const password = String(form.get("password") || "");
-  if (username === validUser.username && password === validUser.password) {
+  if (validUsers.some((user) => username === user.username && password === user.password)) {
     localStorage.setItem(authKey, "active");
     loginError.textContent = "";
     loginForm.reset();
