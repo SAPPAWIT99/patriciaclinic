@@ -3274,8 +3274,131 @@ td {
   min-height: 210px;
 }
 
-.course-manager-hero {
+.course-balance-head {
+  padding: 26px 28px;
   margin-bottom: 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: 28px;
+  background:
+    linear-gradient(135deg, rgba(239, 246, 255, 0.98), rgba(219, 234, 254, 0.92)),
+    radial-gradient(circle at 88% 18%, rgba(14, 165, 233, 0.18), transparent 32%);
+  box-shadow: 0 18px 38px rgba(37, 99, 235, 0.12);
+}
+
+.course-balance-top,
+.course-balance-title,
+.course-balance-controls,
+.course-balance-actions {
+  display: flex;
+  align-items: center;
+}
+
+.course-balance-top {
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(147, 197, 253, 0.7);
+}
+
+.course-balance-title {
+  gap: 12px;
+  min-width: 0;
+}
+
+.course-balance-title h2 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.course-balance-title p {
+  margin: 2px 0 0;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.balance-live-dot {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.course-balance-controls {
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.df-control {
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.df-control input {
+  width: 48px;
+  height: 26px;
+  border: 0;
+  border-radius: 8px;
+  background: #e0f2fe;
+  color: #0f172a;
+  text-align: center;
+  font-weight: 900;
+}
+
+.course-balance-actions {
+  gap: 12px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.course-balance-search {
+  flex: 1 1 420px;
+  min-width: 260px;
+}
+
+.course-balance-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.course-balance-tabs button,
+.select-all-button {
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 15px;
+  background: transparent;
+  color: #64748b;
+  font-weight: 900;
+}
+
+.course-balance-tabs button.active {
+  background: #fff;
+  color: #1d4ed8;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.13);
+}
+
+.select-all-button {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .course-manager-stats {
@@ -3287,31 +3410,20 @@ td {
   gap: 14px;
 }
 
-.course-manager-toolbar {
-  align-items: stretch;
-}
-
-.course-manager-toolbar .catalog-search {
-  flex: 1 1 360px;
-  min-width: 240px;
-}
-
-.course-manager-toolbar .filters {
-  align-items: center;
-}
-
-.course-manager-list {
+.course-balance-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
   gap: 14px;
 }
 
 .course-manager-card {
+  position: relative;
   min-width: 0;
-  border: 1px solid #dbeafe;
-  border-radius: 14px;
-  padding: 14px;
-  background: #fff;
+  min-height: 226px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  padding: 16px;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
   box-shadow: 0 14px 30px rgba(37, 99, 235, 0.08);
   display: grid;
   gap: 12px;
@@ -3325,9 +3437,10 @@ td {
 
 .course-card-head {
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) auto;
+  grid-template-columns: 32px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
+  padding-right: 26px;
 }
 
 .course-card-head strong,
@@ -3345,43 +3458,156 @@ td {
   font-weight: 800;
 }
 
-.course-card-body {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+.course-card-select {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #bfdbfe;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0;
 }
 
-.course-card-body div {
-  border-radius: 10px;
-  background: #f3f8ff;
-  padding: 9px;
-  display: grid;
-  gap: 2px;
-}
-
-.course-card-body span {
-  color: #7890ad;
-  font-size: 11px;
-  font-weight: 900;
-}
-
-.course-card-body strong {
-  color: #172033;
+.course-manager-card h3 {
+  margin: 0;
+  color: #0f172a;
   font-size: 16px;
+  line-height: 1.35;
   font-weight: 900;
 }
 
-.course-manager-card .course-progress {
-  width: 100%;
+.course-card-meter {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 9px 12px;
+  border-radius: 12px;
+  background: #f0f7ff;
+  padding: 14px 12px 12px;
+}
+
+.course-card-meter div {
   min-width: 0;
 }
 
+.course-card-meter strong {
+  color: #0f172a;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.course-card-meter span {
+  color: #0284c7;
+  font-weight: 900;
+}
+
+.course-card-meter b {
+  color: #0ea5e9;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.course-card-meter .bar-track {
+  grid-column: 1 / -1;
+  height: 8px;
+}
+
+.course-card-meter .bar-track i {
+  background: linear-gradient(90deg, #38bdf8, #2563eb);
+}
+
+.course-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.course-card-meta span,
+.course-card-meta mark {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #e0f2fe;
+}
+
+.course-card-meta mark {
+  color: #b91c1c;
+  background: #fee2e2;
+}
+
 .course-manager-card .course-item-actions {
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 8px;
+  justify-content: stretch;
 }
 
 .course-manager-card .course-deduct-action {
-  min-width: 150px;
+  width: 100%;
+  min-width: 0;
+  height: 42px;
+  justify-content: center;
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  color: #fff;
+}
+
+.course-card-profile {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  display: inline-grid;
+  place-items: center;
+}
+
+.course-card-profile svg {
+  width: 18px;
+  height: 18px;
+}
+
+.course-card-tools {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.course-card-tools button {
+  min-height: 36px;
+}
+
+@media (max-width: 720px) {
+  .course-balance-head {
+    padding: 20px;
+    border-radius: 20px;
+  }
+
+  .course-balance-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .course-balance-controls,
+  .course-balance-actions,
+  .course-balance-tabs {
+    width: 100%;
+  }
+
+  .course-balance-tabs {
+    overflow-x: auto;
+  }
+
+  .course-balance-tabs button,
+  .select-all-button {
+    flex: 1 0 auto;
+  }
 }
 
 .weekly-sales-panel {

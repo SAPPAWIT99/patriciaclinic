@@ -1162,12 +1162,12 @@ function renderServiceCatalogManager() {
 }
 
 function renderCourseDeductionManager() {
-  const filters = ["ทั้งหมด", "ใช้งานอยู่", "ใกล้หมด", "ใช้ครบแล้ว", "พักคอร์ส"];
+  const filters = ["ทั้งหมด", "วันนี้", "เดือนนี้", "ปีนี้"];
   const query = searchTerm.toLowerCase();
   const rows = state.courses.filter((course) => {
-    const status = courseStatus(course);
-    const matchFilter = activeFilter === "ทั้งหมด" || status === activeFilter;
-    const matchSearch = !query || `${course.patient} ${course.course} ${course.service} ${course.id}`.toLowerCase().includes(query);
+    const patient = patientByName(course.patient);
+    const matchFilter = courseMatchesPeriod(course, activeFilter);
+    const matchSearch = !query || `${course.patient} ${patient.id} ${course.course} ${course.service} ${course.id}`.toLowerCase().includes(query);
     return matchFilter && matchSearch;
   });
   const active = state.courses.filter((course) => courseStatus(course) === "ใช้งานอยู่").length;
@@ -1175,13 +1175,34 @@ function renderCourseDeductionManager() {
   const depleted = state.courses.filter((course) => courseStatus(course) === "ใช้ครบแล้ว").length;
   const totalRemaining = state.courses.reduce((sum, course) => sum + courseRemaining(course), 0);
   return `
-    <section class="service-hero course-manager-hero">
-      <div class="patient-hero-icon">${icons.course}</div>
-      <div>
-        <h2>จัดการตัดคอร์ส</h2>
-        <p>ติดตามคอร์สคงเหลือและบันทึกการใช้บริการของลูกค้า</p>
+    <section class="course-balance-head">
+      <div class="course-balance-top">
+        <div class="course-balance-title">
+          <div class="patient-hero-icon">${icons.course}</div>
+          <div>
+            <h2>คอร์สคงเหลือ</h2>
+            <p>${rows.length} รายการ · เลือก 0</p>
+          </div>
+          <span class="balance-live-dot">ACTIVE</span>
+        </div>
+        <div class="course-balance-controls">
+          <label class="df-control">
+            <span>% DF</span>
+            <input type="number" value="10" min="0" max="100" aria-label="DF percentage">
+            <b>%</b>
+          </label>
+          <button class="secondary">${icons.notes}Export</button>
+          <button data-action="add" data-view="courses">${icons.plus}เพิ่มคอร์สลูกค้า</button>
+        </div>
       </div>
-      <button data-action="add" data-view="courses">${icons.plus}เพิ่มคอร์สลูกค้า</button>
+      <div class="course-balance-actions">
+        <label class="catalog-search course-balance-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
+          <input data-action="courseSearch" value="${escapeHtml(searchTerm)}" placeholder="ค้นหาลูกค้า, HN, คอร์ส...">
+        </label>
+        <div class="course-balance-tabs">${filters.map((filter) => `<button class="${filter === activeFilter ? "active" : ""}" data-filter="${filter}">${filter}</button>`).join("")}</div>
+        <button class="select-all-button" type="button">เลือกทั้งหมด</button>
+      </div>
     </section>
     <section class="grid stats course-manager-stats">
       ${stat("คอร์สใช้งานอยู่", active, "พร้อมตัดคอร์ส")}
@@ -1189,57 +1210,65 @@ function renderCourseDeductionManager() {
       ${stat("ใช้ครบแล้ว", depleted, "ปิดการใช้งาน")}
       ${stat("จำนวนครั้งคงเหลือ", totalRemaining, "รวมทุกคอร์ส")}
     </section>
-    <section class="panel course-manager-panel">
-      <div class="toolbar course-manager-toolbar">
-        <label class="catalog-search">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
-          <input data-action="courseSearch" value="${escapeHtml(searchTerm)}" placeholder="ค้นหาลูกค้า, HN, ชื่อคอร์ส...">
-        </label>
-        <div class="filters">${filters.map((filter) => `<button class="${filter === activeFilter ? "active" : ""}" data-filter="${filter}">${filter}</button>`).join("")}</div>
-      </div>
-      <div class="course-manager-list">
+    <section class="course-manager-panel">
+      <div class="course-balance-grid">
         ${rows.map(renderCourseManagerCard).join("") || emptyState()}
       </div>
     </section>`;
+}
+
+function courseMatchesPeriod(course, filter) {
+  if (filter === "ทั้งหมด") return true;
+  const dates = [
+    course.startDate,
+    course.lastUsedDate,
+    ...(Array.isArray(course.usageLog) ? course.usageLog.map((item) => item.date) : [])
+  ].filter(Boolean);
+  if (filter === "วันนี้") return dates.some((date) => date === todayIso);
+  if (filter === "เดือนนี้") return dates.some((date) => String(date).slice(0, 7) === todayIso.slice(0, 7));
+  if (filter === "ปีนี้") return dates.some((date) => String(date).slice(0, 4) === todayIso.slice(0, 4));
+  return true;
 }
 
 function renderCourseManagerCard(course) {
   const remaining = courseRemaining(course);
   const total = Math.max(Number(course.total || 0), 1);
   const used = Math.min(Number(course.used || 0), total);
-  const percent = Math.round((used / total) * 100);
+  const percent = Math.round((remaining / total) * 100);
+  const unit = course.unitType || "ครั้ง";
+  const patient = patientByName(course.patient);
   const pendingCourseAmount = pendingBillsForCourse(course).reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
   return `<article class="course-manager-card ${pendingCourseAmount ? "pending-payment" : ""}">
+    <button class="course-card-select" type="button" aria-label="เลือกคอร์ส"></button>
     <div class="course-card-head">
       <span class="avatar">${initials(course.patient)}</span>
       <div>
         <strong>${escapeHtml(course.patient)}</strong>
-        <small>${escapeHtml(course.id)} · ${escapeHtml(course.course)}</small>
+        <small>${escapeHtml(patient.id || course.id)} · ${escapeHtml(course.id)}</small>
       </div>
+    </div>
+    <h3>${escapeHtml(course.course)}</h3>
+    <div class="course-card-meter">
+      <div>
+        <strong>${remaining}</strong>
+        <span>/ ${total} ${escapeHtml(unit)}</span>
+      </div>
+      <b>${percent}%</b>
+      <div class="bar-track"><i style="width:${percent}%"></i></div>
+    </div>
+    <div class="course-card-meta">
+      <span>${escapeHtml(course.service || "-")}</span>
+      <span>ใช้แล้ว ${used}/${total} · เหลือ ${remaining} ${escapeHtml(unit)}</span>
+      ${pendingCourseAmount ? `<mark>ค้างชำระ ${money(pendingCourseAmount)}</mark>` : ""}
       ${badge(courseStatus(course))}
     </div>
-    <div class="course-card-body">
-      <div>
-        <span>ใช้แล้ว</span>
-        <strong>${used}/${total}</strong>
-      </div>
-      <div>
-        <span>เหลือ</span>
-        <strong>${remaining}</strong>
-      </div>
-      <div>
-        <span>ใช้ล่าสุด</span>
-        <strong>${escapeHtml(course.lastUsedDate || "-")}</strong>
-      </div>
-    </div>
-    <div class="course-progress">
-      <div class="bar-track"><i style="width:${percent}%"></i></div>
-      <span>${escapeHtml(course.service || "-")}${pendingCourseAmount ? ` · ค้างชำระ ${money(pendingCourseAmount)}` : ""}</span>
-    </div>
     <div class="course-item-actions">
+      <button class="deduct-button course-deduct-action" data-action="deduct" data-id="${course.id}" ${remaining <= 0 ? "disabled" : ""}>${icons.deduct}<span>ตัดคอร์ส</span></button>
+      <button class="course-card-profile" data-action="viewCoursePatient" data-patient="${escapeHtml(course.patient)}" aria-label="เปิดข้อมูลลูกค้า">${icons.users}</button>
+    </div>
+    <div class="course-card-tools">
       ${pendingCourseAmount ? `<button class="pay-due-button" data-action="payOutstandingCourse" data-id="${course.id}">${icons.wallet}<span>ชำระค้าง</span></button>` : ""}
-      <button class="deduct-button course-deduct-action" data-action="deduct" data-id="${course.id}" ${remaining <= 0 ? "disabled" : ""}>${icons.deduct}<span>ตัดคอร์ส / ใช้บริการ</span></button>
-      <button class="action-button edit-action" data-action="edit" data-view="courses" data-id="${course.id}">${icons.edit}<span>แก้</span></button>
+      <button class="action-button edit-action" data-action="edit" data-view="courses" data-id="${course.id}">${icons.edit}<span>แก้ไข</span></button>
       <button class="action-button danger delete-action" data-action="delete" data-view="courses" data-id="${course.id}">${icons.trash}<span>ลบ</span></button>
     </div>
   </article>`;
@@ -2089,6 +2118,13 @@ contentEl.addEventListener("click", (event) => {
     render();
   }
   if (button.dataset.action === "buyCourse") openBuyCourse(button.dataset.patientId);
+  if (button.dataset.action === "viewCoursePatient") {
+    const patient = patientByName(button.dataset.patient || "");
+    selectedPatientId = patient.id;
+    patientDetailTab = "courses";
+    currentView = "patients";
+    render();
+  }
   if (button.dataset.action === "payOutstandingCourse") openPayOutstandingCourse(button.dataset.id);
   if (button.dataset.action === "deduct") openDeductCourse(button.dataset.id);
   if (button.dataset.action === "edit") openForm(button.dataset.view, button.dataset.id);
