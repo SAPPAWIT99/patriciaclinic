@@ -980,7 +980,7 @@ h1 {
 .buy-inline-add-grid {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: minmax(180px, 1.4fr) minmax(120px, 0.8fr) 110px 100px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   align-items: end;
 }
@@ -994,6 +994,8 @@ h1 {
 }
 
 .buy-inline-add-grid input {
+  width: 100%;
+  min-width: 0;
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 9px;
