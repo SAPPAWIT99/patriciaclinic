@@ -1362,6 +1362,22 @@ function catalogRows() {
   return state.serviceCatalog;
 }
 
+function buyCourseOptionTemplate(item) {
+  const searchText = `${item.name} ${item.category} ${item.type || ""} ${item.description || ""} ${item.price || ""} ${item.sessions || ""}`.toLowerCase();
+  return `
+    <label class="buy-course-option" data-search="${escapeHtml(searchText)}">
+      <input type="checkbox" name="catalogId" value="${escapeHtml(item.id)}">
+      <span class="service-icon">${icons.course}</span>
+      <span class="buy-course-info">
+        <strong>${escapeHtml(item.name)}</strong>
+        <small>${escapeHtml(item.category)} · ${Number(item.sessions || 1)} ครั้ง</small>
+      </span>
+      <input class="qty-input" name="qty-${escapeHtml(item.id)}" type="number" min="1" value="1" aria-label="จำนวน">
+      <b>${money(item.price)}</b>
+    </label>
+  `;
+}
+
 function renderServiceCatalogManager() {
   const categories = ["ทั้งหมด", ...new Set(catalogRows().map((item) => item.category))];
   const query = searchTerm.toLowerCase();
@@ -1788,11 +1804,7 @@ function openDeductCourse(id) {
 function openBuyCourse(patientId) {
   const patient = state.patients.find((item) => item.id === patientId);
   if (!patient) return;
-  const catalog = catalogRows();
-  if (!catalog.length) {
-    alert("ยังไม่มีรายการบริการ/คอร์ส กรุณาเพิ่มรายการก่อน");
-    return;
-  }
+  let catalog = catalogRows();
   const nextId = `C-${String(Date.now()).slice(-6)}`;
   let paymentStep = false;
   modalTitle.textContent = "ซื้อคอร์ส";
@@ -1809,19 +1821,33 @@ function openBuyCourse(patientId) {
           <input type="search" data-action="buyCourseSearch" placeholder="ค้นหาบริการ/คอร์ส...">
         </label>
         <div class="buy-search-result muted" id="buySearchResult"></div>
+        <details class="buy-inline-add">
+          <summary>${icons.plus}<span>ไม่มีในรายการ? เพิ่มบริการ/คอร์สใหม่</span></summary>
+          <div class="buy-inline-add-grid">
+            <label>
+              <span>ชื่อบริการ/คอร์ส</span>
+              <input name="newCourseName" placeholder="เช่น Botox Nabota 50u">
+            </label>
+            <label>
+              <span>หมวดหมู่</span>
+              <input name="newCourseCategory" value="อื่นๆ" list="inlineServiceCategories">
+            </label>
+            <label>
+              <span>ราคา</span>
+              <input name="newCoursePrice" type="number" min="0" placeholder="0">
+            </label>
+            <label>
+              <span>จำนวนครั้ง</span>
+              <input name="newCourseSessions" type="number" min="1" value="1">
+            </label>
+            <button type="button" data-action="addInlineService">${icons.plus}เพิ่มเข้าในรายการ</button>
+          </div>
+        </details>
+        <datalist id="inlineServiceCategories">
+          ${[...new Set(catalog.map((item) => item.category).filter(Boolean))].map((category) => `<option value="${escapeHtml(category)}"></option>`).join("")}
+        </datalist>
         <div class="buy-course-menu">
-        ${catalog.map((item, index) => `
-          <label class="buy-course-option" data-search="${escapeHtml(`${item.name} ${item.category} ${item.type || ""} ${item.description || ""} ${item.price || ""} ${item.sessions || ""}`.toLowerCase())}">
-            <input type="checkbox" name="catalogId" value="${escapeHtml(item.id)}">
-            <span class="service-icon">${icons.course}</span>
-            <span class="buy-course-info">
-              <strong>${escapeHtml(item.name)}</strong>
-              <small>${escapeHtml(item.category)} · ${Number(item.sessions || 1)} ครั้ง</small>
-            </span>
-            <input class="qty-input" name="qty-${escapeHtml(item.id)}" type="number" min="1" value="1" aria-label="จำนวน">
-            <b>${money(item.price)}</b>
-          </label>
-        `).join("")}
+        ${catalog.map(buyCourseOptionTemplate).join("")}
         </div>
       </div>
       <aside class="buy-summary">
@@ -1901,7 +1927,62 @@ function openBuyCourse(patientId) {
     modalSave.textContent = "ยืนยันการขาย";
     updateBuySummary();
   };
-  modalFields.onclick = (event) => {
+  modalFields.onclick = async (event) => {
+    if (event.target.closest('[data-action="addInlineService"]')) {
+      const formElement = modal.querySelector("form");
+      const name = String(formElement.newCourseName?.value || "").trim();
+      const category = String(formElement.newCourseCategory?.value || "อื่นๆ").trim() || "อื่นๆ";
+      const rawPrice = String(formElement.newCoursePrice?.value || "").trim();
+      const price = Math.max(0, Number(rawPrice || 0));
+      const sessions = Math.max(1, Number(formElement.newCourseSessions?.value || 1));
+      if (!name) {
+        alert("กรุณากรอกชื่อบริการ/คอร์ส");
+        formElement.newCourseName?.focus();
+        return;
+      }
+      if (!rawPrice || !Number.isFinite(price)) {
+        alert("กรุณากรอกราคา");
+        formElement.newCoursePrice?.focus();
+        return;
+      }
+      const duplicate = catalog.find((item) => String(item.name || "").trim().toLowerCase() === name.toLowerCase());
+      if (duplicate) {
+        alert("มีรายการนี้อยู่แล้ว สามารถค้นหาและเลือกจากรายการได้เลย");
+        return;
+      }
+      const newItem = {
+        id: `SV-${String(Date.now()).slice(-6)}`,
+        name,
+        category,
+        price,
+        sessions,
+        unitType: "ครั้ง",
+        type: "service",
+        status: "เปิดขาย",
+        description: "เพิ่มจากหน้าซื้อคอร์ส"
+      };
+      state.serviceCatalog = [newItem, ...catalog];
+      state = normalizeState(state);
+      catalog = catalogRows();
+      const courseMenu = modalFields.querySelector(".buy-course-menu");
+      courseMenu.insertAdjacentHTML("afterbegin", buyCourseOptionTemplate(newItem));
+      const checkbox = [...courseMenu.querySelectorAll('input[name="catalogId"]')].find((input) => input.value === newItem.id);
+      if (checkbox) checkbox.checked = true;
+      formElement.newCourseName.value = "";
+      formElement.newCourseCategory.value = "อื่นๆ";
+      formElement.newCoursePrice.value = "";
+      formElement.newCourseSessions.value = "1";
+      const searchInput = modalFields.querySelector('[data-action="buyCourseSearch"]');
+      if (searchInput) searchInput.value = "";
+      modalFields.querySelectorAll(".buy-course-option").forEach((option) => {
+        option.hidden = false;
+      });
+      const result = modalFields.querySelector("#buySearchResult");
+      if (result) result.textContent = "เพิ่มรายการใหม่แล้ว และเลือกให้อัตโนมัติ";
+      updateBuySummary();
+      await saveState({ immediate: true });
+      return;
+    }
     if (event.target.closest("#proceedPayment")) showPaymentStep();
   };
   modalFields.oninput = (event) => {
