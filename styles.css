@@ -4591,14 +4591,13 @@ td {
   }
 
   .sidebar {
-    position: sticky;
-    top: 0;
+    position: static;
     z-index: 9;
     min-height: 0;
-    max-height: 148px;
+    max-height: none;
     padding: 8px 10px 10px;
     gap: 8px;
-    overflow: hidden;
+    overflow: visible;
     border-right: 0;
     border-bottom: 1px solid #dbeafe;
   }
@@ -4625,32 +4624,49 @@ td {
   }
 
   .nav {
-    display: flex;
-    gap: 6px;
-    padding: 0 0 4px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    gap: 7px;
+    padding: 0;
     max-width: 100%;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
+    overflow: visible;
+    scroll-snap-type: none;
   }
 
   .nav button {
-    flex: 0 0 auto;
-    min-height: 38px;
+    flex: none;
+    min-height: 48px;
     min-width: 0;
-    padding: 0 10px;
+    width: 100%;
+    padding: 6px 6px;
     border-radius: 10px;
-    font-size: 12px;
-    scroll-snap-align: start;
+    font-size: 11px;
+    line-height: 1.2;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    white-space: normal;
+    scroll-snap-align: none;
   }
 
   .nav button svg {
-    width: 17px;
-    height: 17px;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
   }
 
   .nav button.active,
   .nav button:hover {
-    box-shadow: inset 0 -3px 0 #2563eb;
+    background: #2563eb;
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.16);
+  }
+
+  .nav button.active svg,
+  .nav button:hover svg {
+    color: #fff;
   }
 
   .app {
@@ -4660,7 +4676,7 @@ td {
 
   .topbar {
     position: sticky;
-    top: 94px;
+    top: 0;
     z-index: 8;
     min-height: 0;
     padding: 10px;
@@ -4910,11 +4926,11 @@ td {
 
 @media (max-width: 430px) {
   .sidebar {
-    max-height: 136px;
+    max-height: none;
   }
 
   .topbar {
-    top: 86px;
+    top: 0;
   }
 
   .brand strong {
@@ -4922,9 +4938,10 @@ td {
   }
 
   .nav button span {
-    max-width: 110px;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .content {
