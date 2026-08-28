@@ -4578,4 +4578,385 @@ td {
   }
 }
 
+@media (max-width: 760px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    display: block;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 9;
+    min-height: 0;
+    max-height: 148px;
+    padding: 8px 10px 10px;
+    gap: 8px;
+    overflow: hidden;
+    border-right: 0;
+    border-bottom: 1px solid #dbeafe;
+  }
+
+  .brand {
+    min-height: 40px;
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+    flex-basis: 36px;
+  }
+
+  .brand strong {
+    font-size: 15px;
+  }
+
+  .brand span {
+    font-size: 9px;
+    letter-spacing: 0.1em;
+  }
+
+  .nav {
+    display: flex;
+    gap: 6px;
+    padding: 0 0 4px;
+    max-width: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+  }
+
+  .nav button {
+    flex: 0 0 auto;
+    min-height: 38px;
+    min-width: 0;
+    padding: 0 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    scroll-snap-align: start;
+  }
+
+  .nav button svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .nav button.active,
+  .nav button:hover {
+    box-shadow: inset 0 -3px 0 #2563eb;
+  }
+
+  .app {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 94px;
+    z-index: 8;
+    min-height: 0;
+    padding: 10px;
+    gap: 8px;
+    background: rgba(248, 251, 255, 0.96);
+  }
+
+  .topbar h1 {
+    font-size: 20px;
+  }
+
+  .topbar .eyebrow {
+    font-size: 11px;
+  }
+
+  .top-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 40px;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .search {
+    width: 100%;
+    min-height: 40px;
+  }
+
+  .search input {
+    font-size: 14px;
+  }
+
+  .icon-button {
+    width: 40px;
+    min-width: 40px;
+  }
+
+  .content {
+    padding: 10px;
+  }
+
+  .hero-strip,
+  .patient-hero,
+  .service-hero,
+  .analysis-hero,
+  .course-balance-head {
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+
+  .hero-strip {
+    min-height: 120px;
+  }
+
+  .hero-strip h2,
+  .analysis-hero h2,
+  .course-balance-title h2 {
+    font-size: 20px;
+    line-height: 1.25;
+  }
+
+  .hero-strip p,
+  .analysis-hero p,
+  .course-balance-title p {
+    font-size: 12px;
+  }
+
+  .grid,
+  .stats,
+  .two-col,
+  .owner-kpi-grid,
+  .owner-detail-grid,
+  .daily-report-kpis,
+  .daily-report-grid,
+  .daily-report-section.two,
+  .analysis-grid,
+  .service-grid,
+  .course-balance-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px;
+  }
+
+  .panel,
+  .card,
+  .service-card,
+  .course-balance-card,
+  .daily-report-sheet {
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .card.stat {
+    min-height: 92px;
+  }
+
+  .card.stat strong,
+  .daily-report-kpis strong {
+    font-size: 22px;
+  }
+
+  .toolbar,
+  .filters,
+  .catalog-filters,
+  .course-balance-top,
+  .course-balance-controls,
+  .course-balance-actions,
+  .daily-report-toolbar,
+  .analysis-filters {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filters,
+  .catalog-filters,
+  .analysis-month-picker,
+  .course-balance-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    padding-bottom: 6px;
+  }
+
+  .filters button,
+  .catalog-filters button,
+  .analysis-month-picker button,
+  .course-balance-tabs button {
+    flex: 0 0 auto;
+    min-height: 36px;
+    font-size: 12px;
+  }
+
+  .daily-report-head,
+  .daily-report-brand,
+  .receipt-top,
+  .receipt-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .daily-report-stamp,
+  .receipt-box {
+    width: 100%;
+    min-width: 0;
+    position: static;
+  }
+
+  .daily-report-brand img,
+  .receipt-logo-image {
+    width: 82px;
+    height: 56px;
+  }
+
+  .daily-report-brand h2 {
+    font-size: 22px;
+  }
+
+  .daily-report-table,
+  table {
+    min-width: 620px;
+    font-size: 12px;
+  }
+
+  th,
+  td,
+  .daily-report-table th,
+  .daily-report-table td {
+    padding: 8px;
+  }
+
+  .table-actions button,
+  .receipt-view-button {
+    min-height: 36px;
+    min-width: 58px;
+  }
+
+  .patient-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 6px;
+  }
+
+  .patient-tabs button {
+    flex: 0 0 auto;
+    min-height: 38px;
+    font-size: 12px;
+  }
+
+  .patient-detail-head {
+    margin: -10px -10px 12px;
+    padding: 12px;
+  }
+
+  .detail-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .course-detail-item,
+  .transaction-item,
+  .course-balance-card {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .course-item-actions,
+  .table-actions {
+    justify-content: flex-start;
+  }
+
+  .buy-course-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .buy-course-menu {
+    max-height: 360px;
+  }
+
+  .buy-course-option {
+    grid-template-columns: 24px 38px minmax(0, 1fr);
+  }
+
+  .buy-course-option .qty-input,
+  .buy-course-option b {
+    grid-column: 3;
+  }
+
+  .modal {
+    width: min(100vw - 16px, 720px);
+    max-height: calc(100vh - 16px);
+    padding: 12px;
+  }
+
+  dialog {
+    width: min(100vw - 8px, 760px);
+    max-width: calc(100vw - 8px);
+  }
+
+  dialog menu {
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    padding-top: 10px;
+  }
+}
+
+@media (max-width: 430px) {
+  .sidebar {
+    max-height: 136px;
+  }
+
+  .topbar {
+    top: 86px;
+  }
+
+  .brand strong {
+    font-size: 14px;
+  }
+
+  .nav button span {
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .content {
+    padding: 8px;
+  }
+
+  .panel,
+  .card,
+  .service-card,
+  .course-balance-card,
+  .daily-report-sheet {
+    padding: 10px;
+  }
+
+  .daily-report-kpis article,
+  .daily-report-box {
+    padding: 10px;
+  }
+
+  .analysis-bars article {
+    grid-template-columns: 28px minmax(0, 1fr) 44px;
+    gap: 7px;
+    padding: 8px;
+  }
+
+  .analysis-bar-track {
+    grid-column: 2 / -1;
+  }
+
+  .analysis-bars article > b {
+    font-size: 12px;
+  }
+}
+
 
