@@ -33,6 +33,7 @@ const icons = {
 const menu = [
   ["dashboard", "Dashboard", "ภาพรวมระบบคลินิก"],
   ["ownerSummary", "ภาพรวมวันนี้", "บริการ คอร์ส และยอดเงินประจำวัน"],
+  ["dailyReport", "รายงานประจำวัน", "ปิดยอดและพิมพ์เก็บแฟ้ม"],
   ["patients", "ลูกค้า (CRM)", "ศูนย์กลางข้อมูล ประวัติรักษา และคอร์ส"],
   ["appointments", "นัดหมาย", "ตารางนัดและการติดตาม"],
   ["billing", "แคชเชียร์ / ซื้อคอร์ส", "ใบเสร็จและยอดค้างชำระ"],
@@ -49,6 +50,7 @@ const menu = [
 const menuIcons = {
   dashboard: icons.dashboard,
   ownerSummary: icons.chart,
+  dailyReport: icons.notes,
   queue: icons.queue,
   appointments: icons.calendar,
   patients: icons.users,
@@ -124,6 +126,7 @@ let dashboardPaymentMethod = "ทั้งหมด";
 let weeklySalesDays = 7;
 let salesAnalysisYear = todayIso.slice(0, 4);
 let salesAnalysisMonths = [];
+let dailyReportDate = todayIso;
 
 const navEl = document.querySelector("#nav");
 const contentEl = document.querySelector("#content");
@@ -624,6 +627,199 @@ function renderTodayOwnerSummary() {
         </article>
       </div>
     </section>`;
+}
+
+function thaiDateLabel(dateString, options = {}) {
+  if (!dateString) return "-";
+  return new Date(`${dateString}T00:00:00`).toLocaleDateString("th-TH", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    ...options
+  });
+}
+
+function dailyBillRows(dateString) {
+  return state.billing
+    .filter((bill) => bill.date === dateString)
+    .sort((a, b) => String(a.id || "").localeCompare(String(b.id || ""), "th"));
+}
+
+function dailyServiceRows(bills) {
+  const rows = bills.flatMap((bill) => salesLineItemsForBill(bill).map((item) => ({
+    ...item,
+    patient: bill.patient || "-",
+    billId: bill.id || "-"
+  })));
+  return rows.length ? rows : bills.map((bill) => ({
+    name: bill.item || "ไม่ระบุรายการ",
+    quantity: 1,
+    amount: Number(bill.amount || 0),
+    patient: bill.patient || "-",
+    billId: bill.id || "-"
+  })).filter((row) => !isNonServiceSalesItem(row.name));
+}
+
+function reportTable(headers, rows, emptyText) {
+  if (!rows.length) return `<p class="daily-report-empty">${escapeHtml(emptyText)}</p>`;
+  return `
+    <table class="daily-report-table">
+      <thead><tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr></thead>
+      <tbody>${rows.join("")}</tbody>
+    </table>
+  `;
+}
+
+function printDailyReport() {
+  document.body.classList.add("daily-report-printing");
+  const cleanup = () => document.body.classList.remove("daily-report-printing");
+  window.addEventListener("afterprint", cleanup, { once: true });
+  window.print();
+  setTimeout(cleanup, 1200);
+}
+
+function renderDailyReport() {
+  const reportDate = dailyReportDate || todayIso;
+  const bills = dailyBillRows(reportDate);
+  const records = state.records.filter((record) => record.date === reportDate);
+  const appointments = state.appointments.filter((appointment) => appointment.date === reportDate);
+  const usages = courseUsageRowsForDate(reportDate);
+  const paidTotal = bills.reduce((sum, bill) => sum + Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0), 0);
+  const grossTotal = bills.reduce((sum, bill) => sum + Number(bill.subtotal || bill.amount || 0), 0);
+  const discountTotal = bills.reduce((sum, bill) => sum + Number(bill.discount || 0), 0);
+  const netTotal = bills.reduce((sum, bill) => sum + Number(bill.amount || 0), 0);
+  const pendingTotal = bills.reduce((sum, bill) => sum + Math.max(Number(bill.amount || 0) - Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0), 0), 0);
+  const serviceRows = dailyServiceRows(bills);
+  const customerCount = new Set([
+    ...bills.map((bill) => bill.patient),
+    ...records.map((record) => record.patient || recordFullName(record))
+  ].filter(Boolean)).size;
+  const soldCount = serviceRows.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  const usageCount = usages.reduce((sum, usage) => sum + Number(usage.count || 0), 0);
+  const payment = paymentBreakdown(bills);
+  const sellerRows = [...bills.reduce((map, bill) => {
+    const seller = bill.seller || "ไม่ระบุ";
+    const current = map.get(seller) || { seller, count: 0, amount: 0 };
+    current.count += 1;
+    current.amount += Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
+    map.set(seller, current);
+    return map;
+  }, new Map()).values()].sort((a, b) => b.amount - a.amount);
+
+  const billRows = bills.map((bill, index) => {
+    const paid = Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
+    const due = Math.max(Number(bill.amount || 0) - paid, 0);
+    return `<tr>
+      <td>${index + 1}</td>
+      <td><strong>${escapeHtml(bill.id || "-")}</strong><span>${escapeHtml(bill.patient || "-")}</span></td>
+      <td>${escapeHtml(bill.item || "-")}</td>
+      <td>${money(bill.amount || 0)}</td>
+      <td>${money(paid)}</td>
+      <td>${due ? `<b class="report-danger">${money(due)}</b>` : "-"}</td>
+      <td>${escapeHtml(bill.paymentMethod || "ไม่ระบุ")}</td>
+      <td>${escapeHtml(bill.status || "-")}</td>
+    </tr>`;
+  });
+  const usageRows = usages.map((usage, index) => `<tr>
+    <td>${index + 1}</td>
+    <td><strong>${escapeHtml(usage.patient)}</strong></td>
+    <td>${escapeHtml(usage.course)}</td>
+    <td>${escapeHtml(usage.service || "-")}</td>
+    <td>${Number(usage.count || 0).toLocaleString("th-TH")} ครั้ง</td>
+  </tr>`);
+  const serviceSummaryRows = serviceRows.slice(0, 10).map((item, index) => `<tr>
+    <td>${index + 1}</td>
+    <td><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.patient || "-")}</span></td>
+    <td>${Number(item.quantity || 0).toLocaleString("th-TH")}</td>
+    <td>${money(item.amount || 0)}</td>
+  </tr>`);
+
+  return `
+    <section class="daily-report-page">
+      <div class="daily-report-toolbar">
+        <label>วันที่รายงาน
+          <input type="date" data-action="dailyReportDate" value="${escapeHtml(reportDate)}">
+        </label>
+        <button type="button" data-action="printDailyReport">${icons.wallet}พิมพ์รายงาน</button>
+      </div>
+      <article class="daily-report-sheet" id="dailyReportSheet">
+        <header class="daily-report-head">
+          <div class="daily-report-brand">
+            <img src="assets/logo.jpg" alt="แพทริเซียคลินิก">
+            <div>
+              <h2>รายงานประจำวัน</h2>
+              <strong>แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม</strong>
+              <span>วันที่ ${thaiDateLabel(reportDate, { weekday: "long" })}</span>
+            </div>
+          </div>
+          <div class="daily-report-stamp">
+            <strong>DAILY REPORT</strong>
+            <span>${escapeHtml(reportDate)}</span>
+          </div>
+        </header>
+
+        <section class="daily-report-kpis">
+          <article><span>ยอดรับเงินจริง</span><strong>${money(paidTotal)}</strong><small>${bills.length} ใบเสร็จ</small></article>
+          <article class="${pendingTotal ? "danger" : ""}"><span>ยอดค้างชำระ</span><strong>${money(pendingTotal)}</strong><small>${pendingTotal ? "ต้องติดตาม" : "ชำระครบ"}</small></article>
+          <article><span>ลูกค้าที่รับบริการ</span><strong>${customerCount}</strong><small>${records.length} เวชระเบียน</small></article>
+          <article><span>ตัดคอร์ส</span><strong>${usageCount}</strong><small>${usages.length} รายการ</small></article>
+        </section>
+
+        <section class="daily-report-grid">
+          <div class="daily-report-box">
+            <h3>สรุปยอดเงิน</h3>
+            <div class="daily-report-lines">
+              <p><span>ยอดรวมก่อนส่วนลด</span><strong>${money(grossTotal)}</strong></p>
+              <p><span>ส่วนลดรวม</span><strong>${money(discountTotal)}</strong></p>
+              <p><span>ยอดสุทธิ</span><strong>${money(netTotal)}</strong></p>
+              <p><span>ยอดรับเงินจริง</span><strong>${money(paidTotal)}</strong></p>
+              <p class="net"><span>ยอดค้างชำระ</span><strong>${money(pendingTotal)}</strong></p>
+            </div>
+          </div>
+          <div class="daily-report-box">
+            <h3>ช่องทางการชำระเงิน</h3>
+            <div class="daily-payment-list">
+              ${payment.rows.length ? payment.rows.map((row) => `<p><span>${escapeHtml(row.method)}</span><strong>${money(row.amount)}</strong><small>${row.percent}%</small></p>`).join("") : "<p class='daily-report-empty'>ยังไม่มีการรับเงินวันนี้</p>"}
+            </div>
+          </div>
+          <div class="daily-report-box">
+            <h3>ผู้ขาย / ผู้รับเงิน</h3>
+            <div class="daily-payment-list">
+              ${sellerRows.length ? sellerRows.map((row) => `<p><span>${escapeHtml(row.seller)}</span><strong>${money(row.amount)}</strong><small>${row.count} ใบ</small></p>`).join("") : "<p class='daily-report-empty'>ยังไม่มีข้อมูลผู้ขาย</p>"}
+            </div>
+          </div>
+          <div class="daily-report-box">
+            <h3>ภาพรวมงานบริการ</h3>
+            <div class="daily-report-lines">
+              <p><span>นัดหมายของวัน</span><strong>${appointments.length}</strong></p>
+              <p><span>รายการขายบริการ/คอร์ส</span><strong>${soldCount}</strong></p>
+              <p><span>รายการตัดคอร์ส</span><strong>${usages.length}</strong></p>
+            </div>
+          </div>
+        </section>
+
+        <section class="daily-report-section">
+          <h3>รายการใบเสร็จประจำวัน</h3>
+          ${reportTable(["#", "ใบเสร็จ / ลูกค้า", "รายการ", "ยอดสุทธิ", "รับเงิน", "ค้าง", "ช่องทาง", "สถานะ"], billRows, "ยังไม่มีใบเสร็จในวันที่เลือก")}
+        </section>
+        <section class="daily-report-section two">
+          <div>
+            <h3>บริการ/คอร์สที่ขายวันนี้</h3>
+            ${reportTable(["#", "รายการ / ลูกค้า", "จำนวน", "ยอดเงิน"], serviceSummaryRows, "ยังไม่มีรายการขายบริการ/คอร์ส")}
+          </div>
+          <div>
+            <h3>รายการตัดคอร์สวันนี้</h3>
+            ${reportTable(["#", "ลูกค้า", "คอร์ส", "บริการ", "จำนวน"], usageRows, "ยังไม่มีการตัดคอร์ส")}
+          </div>
+        </section>
+        <footer class="daily-report-signatures">
+          <div><span></span><strong>ผู้สรุปรายงาน</strong></div>
+          <div><span></span><strong>ผู้ตรวจสอบ</strong></div>
+          <div><span></span><strong>เจ้าของคลินิก</strong></div>
+        </footer>
+      </article>
+    </section>
+  `;
 }
 
 function renderClinicShowcase() {
@@ -2387,6 +2583,7 @@ function render() {
   renderNav();
   if (currentView === "dashboard") contentEl.innerHTML = renderDashboard();
   else if (currentView === "ownerSummary") contentEl.innerHTML = renderTodayOwnerSummary();
+  else if (currentView === "dailyReport") contentEl.innerHTML = renderDailyReport();
   else if (currentView === "patients") contentEl.innerHTML = renderPatientsCenter();
   else if (currentView === "financeSummary") contentEl.innerHTML = renderFinanceSummary();
   else if (currentView === "courses") contentEl.innerHTML = renderCourseDeductionManager();
@@ -2437,6 +2634,7 @@ contentEl.addEventListener("click", (event) => {
     if (salesAnalysisMonths.length === 12) salesAnalysisMonths = [];
     render();
   }
+  if (button.dataset.action === "printDailyReport") printDailyReport();
   if (button.dataset.action === "add") openForm(button.dataset.view);
   if (button.dataset.action === "viewPatient") {
     selectedPatientId = button.dataset.id;
@@ -2518,11 +2716,15 @@ contentEl.addEventListener("change", (event) => {
     salesAnalysisYear = event.target.value;
     render();
   }
+  if (event.target.dataset.action === "dailyReportDate") {
+    dailyReportDate = event.target.value || todayIso;
+    render();
+  }
 });
 
 document.querySelector("#globalSearch").addEventListener("input", (event) => {
   searchTerm = event.target.value.trim();
-  if (currentView === "dashboard" || currentView === "ownerSummary" || currentView === "financeSummary" || currentView === "salesAnalysis") currentView = "patients";
+  if (currentView === "dashboard" || currentView === "ownerSummary" || currentView === "dailyReport" || currentView === "financeSummary" || currentView === "salesAnalysis") currentView = "patients";
   render();
 });
 
