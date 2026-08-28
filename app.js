@@ -864,12 +864,23 @@ function renderDashboard() {
   const pendingCount = periodBills.filter((item) => Math.max(Number(item.amount || 0) - Number(item.paidAmount || 0), 0) > 0).length;
   const lowStock = state.inventory.filter((item) => Number(item.qty) <= Number(item.reorder)).length;
   return `
-    <section class="hero-strip">
+    <section class="dashboard-live-hero">
       <div>
-        <h2>แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม</h2>
-        <p>ติดตามคิว นัดหมาย เวชระเบียน รายรับ และสต็อก ในหน้าจอเดียว</p>
+        <span class="dashboard-welcome">สวัสดีตอนนี้</span>
+        <h2>Dashboard <b>LIVE</b></h2>
+        <p>ภาพรวมคลินิกและระบบขายในหน้าจอเดียว</p>
       </div>
-      <button data-view="queue">${icons.queue}จัดการคิว</button>
+      <div class="dashboard-live-actions">
+        <span>${thaiDateLabel(todayIso, { weekday: "short" })}</span>
+        <button data-view="queue">${icons.queue}จัดการคิว</button>
+      </div>
+    </section>
+    <section class="grid stats">
+      ${stat("ลูกค้าทั้งหมด", state.patients.length, "+3 รายในสัปดาห์นี้")}
+      ${stat("คิวที่ต้องดูแล", waiting, "อัปเดตแบบเรียลไทม์")}
+      ${stat("นัดหมายวันนี้", todayApps, "พร้อมเข้าห้องตรวจ")}
+      ${stat(`รายรับ${periodLabel(dashboardPeriod)}`, money(income), pending ? `ค้างชำระ ${money(pending)}` : "ชำระครบ")}
+      ${stat("ยอดค้างชำระ", money(pending), pendingCount ? `${pendingCount} ใบเสร็จต้องติดตาม` : "ไม่มีค้างชำระ", "danger")}
     </section>
     <section class="dashboard-controls panel">
       <div>
@@ -891,13 +902,6 @@ function renderDashboard() {
           </select>
         </label>
       </div>
-    </section>
-    <section class="grid stats">
-      ${stat("ลูกค้าทั้งหมด", state.patients.length, "+3 รายในสัปดาห์นี้")}
-      ${stat("คิวที่ต้องดูแล", waiting, "อัปเดตแบบเรียลไทม์")}
-      ${stat("นัดหมายวันนี้", todayApps, "พร้อมเข้าห้องตรวจ")}
-      ${stat(`รายรับ${periodLabel(dashboardPeriod)}`, money(income), pending ? `ค้างชำระ ${money(pending)}` : "ชำระครบ")}
-      ${stat("ยอดค้างชำระ", money(pending), pendingCount ? `${pendingCount} ใบเสร็จต้องติดตาม` : "ไม่มีค้างชำระ", "danger")}
     </section>
     <section class="panel sales-panel weekly-sales-panel" style="margin-top:16px">
       <div class="panel-head">
