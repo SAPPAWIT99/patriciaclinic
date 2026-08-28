@@ -4976,4 +4976,748 @@ td {
   }
 }
 
+/* Premium metallic blue refresh */
+:root {
+  --bg: #eef6ff;
+  --panel: rgba(255, 255, 255, 0.94);
+  --ink: #0d2142;
+  --muted: #667996;
+  --line: #cfe4ff;
+  --primary: #1f5fe0;
+  --primary-strong: #123fba;
+  --accent: #33b8f6;
+  --gold: #7dd3fc;
+  --blue: #0a85d7;
+  --ok: #0076c9;
+  --warn: #b7791f;
+  --danger: #e03444;
+  --shadow: 0 18px 42px rgba(28, 94, 218, 0.14);
+  --metal: linear-gradient(135deg, #0d3695 0%, #1f5fe0 42%, #38bdf8 72%, #eaf8ff 100%);
+  --metal-soft: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(232, 245, 255, 0.9));
+  --shine: linear-gradient(115deg, transparent 0%, rgba(255, 255, 255, 0.44) 38%, transparent 58%);
+}
+
+body {
+  background:
+    radial-gradient(circle at 78% -8%, rgba(56, 189, 248, 0.28), transparent 32%),
+    radial-gradient(circle at 12% 8%, rgba(31, 95, 224, 0.12), transparent 34%),
+    linear-gradient(180deg, #f8fbff 0%, #eef6ff 48%, #e6f2ff 100%);
+  color: var(--ink);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.74), transparent 24%, transparent 76%, rgba(255, 255, 255, 0.58)),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.32) 0 1px, transparent 1px 18px);
+  opacity: 0.72;
+}
+
+button {
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  background: var(--metal);
+  box-shadow: 0 12px 24px rgba(31, 95, 224, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  font-weight: 900;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+button:hover {
+  background: linear-gradient(135deg, #123fba 0%, #1f5fe0 48%, #19a8ef 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px rgba(31, 95, 224, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+.secondary {
+  border-color: #d7e9ff;
+  background: linear-gradient(180deg, #ffffff, #e9f4ff);
+  color: #17406f;
+  box-shadow: 0 8px 18px rgba(31, 95, 224, 0.11), inset 0 1px 0 #fff;
+}
+
+.secondary:hover {
+  background: linear-gradient(180deg, #f8fbff, #dbeeff);
+  color: var(--primary);
+}
+
+.danger {
+  border-color: #ffcdd2;
+  background: linear-gradient(180deg, #fff7f8, #ffe3e6);
+  color: #d21f32;
+  box-shadow: 0 10px 22px rgba(224, 52, 68, 0.12);
+}
+
+.danger:hover {
+  background: linear-gradient(180deg, #fff0f2, #ffd7dc);
+  color: #b51425;
+}
+
+.login-screen {
+  background:
+    radial-gradient(circle at 80% 10%, rgba(56, 189, 248, 0.36), transparent 28%),
+    linear-gradient(135deg, rgba(8, 36, 96, 0.94), rgba(31, 95, 224, 0.82)),
+    url("assets/lobby-wide.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+.login-card {
+  border: 1px solid rgba(207, 228, 255, 0.88);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(239, 248, 255, 0.96)),
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.12), transparent 32%);
+  box-shadow: 0 34px 90px rgba(5, 35, 96, 0.32), inset 0 1px 0 #fff;
+}
+
+.login-card button[type="submit"] {
+  min-height: 52px;
+  border-radius: 12px;
+}
+
+.sidebar {
+  background:
+    radial-gradient(circle at 92% 38px, rgba(125, 211, 252, 0.34), transparent 42px),
+    linear-gradient(180deg, #ffffff 0%, #eff7ff 42%, #ddebff 100%);
+  border-right: 1px solid rgba(163, 207, 255, 0.92);
+  box-shadow: 14px 0 42px rgba(21, 74, 160, 0.13);
+}
+
+.brand {
+  border-bottom-color: rgba(163, 207, 255, 0.8);
+}
+
+.brand-mark {
+  border: 1px solid rgba(156, 205, 255, 0.78);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #ffffff, #dbeeff);
+  box-shadow: 0 10px 24px rgba(31, 95, 224, 0.14), inset 0 1px 0 #fff;
+}
+
+.logo-mark {
+  background: linear-gradient(145deg, #052e74, #031a43);
+}
+
+.brand strong {
+  color: #10284b;
+}
+
+.brand span,
+.eyebrow {
+  color: #1f5fe0;
+}
+
+.nav button {
+  position: relative;
+  overflow: hidden;
+  color: #637897;
+  border-radius: 14px;
+  border: 1px solid transparent;
+}
+
+.nav button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--shine);
+  transform: translateX(-115%);
+  transition: transform 0.45s ease;
+}
+
+.nav button:hover::after,
+.nav button.active::after {
+  transform: translateX(115%);
+}
+
+.nav button svg {
+  width: 23px;
+  height: 23px;
+  color: #7f9abc;
+}
+
+.nav button.active,
+.nav button:hover {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(220, 240, 255, 0.6)) padding-box,
+    var(--metal) border-box;
+  border-color: transparent;
+  color: #0c4fc7;
+  box-shadow: inset 5px 0 0 #38bdf8, 0 14px 28px rgba(31, 95, 224, 0.18);
+}
+
+.nav button.active svg,
+.nav button:hover svg {
+  color: #0c61d8;
+}
+
+.sidebar-user,
+.clinic-card,
+.connection-status {
+  border-color: rgba(163, 207, 255, 0.82);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 12px 28px rgba(31, 95, 224, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+.user-avatar {
+  background: var(--metal);
+}
+
+.connection-status {
+  color: #0a85d7;
+  background: linear-gradient(180deg, #ffffff, #e6f4ff);
+}
+
+.topbar {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(238, 247, 255, 0.84)),
+    radial-gradient(circle at 72% 0%, rgba(56, 189, 248, 0.14), transparent 36%);
+  border-bottom: 1px solid rgba(181, 218, 255, 0.9);
+  box-shadow: 0 14px 36px rgba(31, 95, 224, 0.1);
+}
+
+h1,
+h2,
+h3 {
+  color: #0b2142;
+  letter-spacing: 0;
+}
+
+.search,
+.patient-search,
+.catalog-search,
+.buy-search {
+  border-color: rgba(173, 216, 255, 0.94);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: inset 0 1px 0 #fff, 0 10px 24px rgba(31, 95, 224, 0.08);
+}
+
+.search:focus-within,
+.patient-search:focus-within,
+.catalog-search:focus-within,
+.buy-search:focus-within {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16), 0 12px 26px rgba(31, 95, 224, 0.11);
+}
+
+input,
+select,
+textarea {
+  color: var(--ink);
+}
+
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  border-color: #cfe4ff;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.content {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 180px),
+    transparent;
+}
+
+.panel,
+.card,
+.service-card,
+.course-balance-card,
+.course-manager-card,
+.showcase-card,
+.summary-stack article,
+.queue-item,
+.timeline-item,
+.inventory-item,
+.table-wrap,
+.owner-summary,
+.daily-report-sheet,
+.analysis-panel,
+.monthly-service-grid article,
+.analysis-month-picker,
+.owner-detail-grid article,
+.owner-kpi {
+  border: 1px solid rgba(181, 218, 255, 0.86);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(243, 250, 255, 0.94));
+  box-shadow: 0 18px 40px rgba(31, 95, 224, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.panel,
+.card,
+.service-card,
+.course-balance-card,
+.course-manager-card {
+  border-radius: 18px;
+}
+
+.hero-strip,
+.patient-hero,
+.service-hero,
+.analysis-hero,
+.course-balance-head {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(125, 211, 252, 0.46);
+  background:
+    linear-gradient(105deg, rgba(9, 49, 130, 0.94), rgba(31, 95, 224, 0.88) 50%, rgba(56, 189, 248, 0.76)),
+    url("assets/lobby-wide.jpg");
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 24px 56px rgba(31, 95, 224, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.hero-strip::before,
+.patient-hero::before,
+.service-hero::before,
+.analysis-hero::before,
+.course-balance-head::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(120deg, transparent 0 35%, rgba(255, 255, 255, 0.22) 46%, transparent 58%),
+    radial-gradient(circle at 90% 0%, rgba(255, 255, 255, 0.24), transparent 28%);
+  pointer-events: none;
+}
+
+.hero-strip > *,
+.patient-hero > *,
+.service-hero > *,
+.analysis-hero > *,
+.course-balance-head > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-strip h2,
+.patient-hero h2,
+.service-hero h2,
+.analysis-hero h2,
+.course-balance-title h2 {
+  color: #ffffff;
+  text-shadow: 0 2px 16px rgba(3, 24, 68, 0.32);
+}
+
+.hero-strip p,
+.patient-hero p,
+.service-hero p,
+.analysis-hero p,
+.course-balance-title p {
+  color: #dff6ff;
+}
+
+.analysis-hero span,
+.course-balance-title span {
+  color: #bdefff;
+}
+
+.card.stat,
+.owner-kpi {
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(56, 189, 248, 0.16), transparent 32%),
+    linear-gradient(145deg, #ffffff, #eef8ff);
+  overflow: hidden;
+}
+
+.card.stat::before {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  background:
+    var(--metal);
+  box-shadow: 0 12px 24px rgba(31, 95, 224, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.card.stat::after {
+  content: "";
+  position: absolute;
+  right: -24px;
+  top: -36px;
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  background: rgba(56, 189, 248, 0.13);
+}
+
+.card.stat span,
+.card.stat strong,
+.card.stat b {
+  margin-left: 58px;
+}
+
+.card.stat span,
+.owner-kpi span,
+.owner-kpi small {
+  color: #667996;
+  font-weight: 900;
+}
+
+.card.stat strong,
+.owner-kpi strong,
+.service-price,
+.summary-line.net strong,
+.payment-total,
+.donut-center strong {
+  color: #075ed0;
+}
+
+.card.stat.stat-danger {
+  border-color: #ffc7cf;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(239, 68, 68, 0.11), transparent 34%),
+    linear-gradient(145deg, #fff, #fff2f4);
+}
+
+.card.stat.stat-danger::before {
+  background: linear-gradient(135deg, #ff6b7a, #e03444);
+}
+
+.card.stat.stat-danger strong,
+.report-danger,
+.payment-due-badge,
+.summary-stack .summary-danger strong {
+  color: #e03444;
+}
+
+.dashboard-controls {
+  padding: 16px 18px;
+  border: 1px solid rgba(181, 218, 255, 0.86);
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(235, 247, 255, 0.9));
+  box-shadow: 0 16px 34px rgba(31, 95, 224, 0.11), inset 0 1px 0 #fff;
+}
+
+.segmented,
+.patient-tabs,
+.course-balance-tabs {
+  background: linear-gradient(180deg, #eaf5ff, #dcecff);
+  border: 1px solid rgba(181, 218, 255, 0.76);
+}
+
+.segmented button.active,
+.patient-tabs button.active,
+.filters button.active,
+.catalog-filters button.active,
+.analysis-month-picker button.active,
+.course-balance-tabs button.active {
+  background: var(--metal);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(31, 95, 224, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.dashboard-selects select,
+.analysis-filters select,
+.chart-range-select select {
+  border-color: #b9dcff;
+  background: linear-gradient(180deg, #ffffff, #eef7ff);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.panel-head h2,
+.sales-panel .panel-head h2 {
+  border-left: 8px solid #38bdf8;
+  padding-left: 10px;
+}
+
+.period-pill,
+.chart-range-select select,
+.service-chip,
+.course-card-meta span,
+.course-card-meta mark,
+.payment-due-badge {
+  border: 1px solid rgba(163, 207, 255, 0.7);
+  background: linear-gradient(180deg, #f7fbff, #dff1ff);
+  color: #075ed0;
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.weekly-sales-panel,
+.sales-panel {
+  background:
+    radial-gradient(circle at 90% 8%, rgba(56, 189, 248, 0.18), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(240, 248, 255, 0.94));
+}
+
+.chart-bars,
+.weekly-sales-panel .chart-bars {
+  border-bottom-color: rgba(148, 180, 220, 0.55);
+  background:
+    repeating-linear-gradient(to top, transparent 0, transparent 60px, rgba(190, 220, 250, 0.72) 61px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(235, 247, 255, 0.42));
+}
+
+.chart-bar i,
+.weekly-sales-panel .chart-bar i,
+.analysis-bar-track i,
+.course-card-meter .bar-track i {
+  background: linear-gradient(180deg, #7dd3fc 0%, #2f8bf0 48%, #0c4fc7 100%);
+  box-shadow: 0 12px 22px rgba(31, 95, 224, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.chart-bar b,
+.weekly-sales-panel .chart-bar b,
+.analysis-bars article > b {
+  color: #075ed0;
+}
+
+.donut-wrap {
+  filter: drop-shadow(0 18px 28px rgba(31, 95, 224, 0.16));
+}
+
+.donut-center {
+  background:
+    radial-gradient(circle at 35% 20%, #ffffff, #eff8ff);
+  box-shadow: inset 0 0 0 1px rgba(181, 218, 255, 0.9), 0 8px 18px rgba(31, 95, 224, 0.08);
+}
+
+.payment-legend div,
+.daily-payment-list p,
+.daily-report-lines p,
+.selected-items div,
+.analysis-bars article {
+  border-color: rgba(181, 218, 255, 0.82);
+  background: linear-gradient(180deg, #ffffff, #f4faff);
+}
+
+.service-card {
+  overflow: hidden;
+}
+
+.service-card::after,
+.course-manager-card::after,
+.course-balance-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0 42%, rgba(255, 255, 255, 0.36) 48%, transparent 56%);
+  transform: translateX(-120%);
+  transition: transform 0.5s ease;
+  pointer-events: none;
+}
+
+.service-card:hover,
+.course-manager-card:hover,
+.course-balance-card:hover {
+  border-color: #8ed3ff;
+  transform: translateY(-2px);
+  box-shadow: 0 24px 44px rgba(31, 95, 224, 0.16), inset 0 1px 0 #fff;
+}
+
+.service-card:hover::after,
+.course-manager-card:hover::after,
+.course-balance-card:hover::after {
+  transform: translateX(120%);
+}
+
+.service-icon,
+.patient-hero-icon,
+.search-badge,
+.course-card-head .avatar,
+.analysis-rank {
+  background: linear-gradient(145deg, #e8f7ff, #cae9ff);
+  color: #075ed0;
+  border: 1px solid rgba(157, 211, 255, 0.76);
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.service-select,
+.course-card-select {
+  border-color: #b7d9ff;
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.service-card:has(.service-select:checked),
+.course-manager-card:has(.course-card-select:checked) {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18), 0 22px 42px rgba(31, 95, 224, 0.16);
+}
+
+.course-manager-card,
+.course-balance-card {
+  position: relative;
+}
+
+.course-manager-card.pending-payment,
+.course-balance-card.pending-payment,
+.summary-stack .summary-danger {
+  border-color: #ffb8c0;
+  background:
+    radial-gradient(circle at 92% 14%, rgba(224, 52, 68, 0.1), transparent 30%),
+    linear-gradient(180deg, #fff, #fff4f6);
+}
+
+.buy-course-option,
+.buy-inline-add,
+.payment-methods label {
+  border-color: rgba(181, 218, 255, 0.86);
+  background: linear-gradient(180deg, #ffffff, #f4faff);
+  box-shadow: 0 8px 18px rgba(31, 95, 224, 0.08);
+}
+
+.buy-course-option:hover,
+.buy-course-option:has(input:checked) {
+  border-color: #38bdf8;
+  background: linear-gradient(180deg, #ffffff, #ebf8ff);
+}
+
+.payment-methods label:has(input:checked),
+.pay-now-button,
+.buy-inline-add-grid button {
+  background: var(--metal);
+  color: #fff;
+}
+
+.payment-total {
+  border-color: #a9d8ff;
+  background:
+    radial-gradient(circle at 82% 12%, rgba(56, 189, 248, 0.22), transparent 34%),
+    linear-gradient(145deg, #ffffff, #e8f6ff);
+}
+
+table {
+  background: #fff;
+}
+
+th {
+  background: linear-gradient(180deg, #edf6ff, #dcecff);
+  color: #48617f;
+  font-weight: 900;
+}
+
+td {
+  border-bottom-color: #dbeeff;
+}
+
+tbody tr {
+  transition: background 0.16s ease;
+}
+
+tbody tr:hover {
+  background: #f0f8ff;
+}
+
+.table-actions button,
+.action-button,
+.receipt-view-button {
+  border-radius: 11px;
+}
+
+.modal {
+  border: 1px solid rgba(181, 218, 255, 0.94);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.13), transparent 34%),
+    linear-gradient(180deg, #ffffff, #f3faff);
+  box-shadow: 0 34px 90px rgba(5, 35, 96, 0.28);
+}
+
+.modal-head {
+  border-bottom-color: #d7e9ff;
+}
+
+.modal-close {
+  background: linear-gradient(180deg, #fff5f6, #ffdfe4);
+  color: #d21f32;
+  border-color: #ffc4cc;
+}
+
+.daily-report-toolbar,
+.daily-report-sheet {
+  border-radius: 18px;
+}
+
+.daily-report-head,
+.receipt-top {
+  border-bottom-color: #c7d8ed;
+}
+
+.daily-report-brand img,
+.receipt-logo-image {
+  border-radius: 4px;
+}
+
+@media print {
+  body::before {
+    display: none;
+  }
+
+  button,
+  .panel,
+  .card,
+  .receipt,
+  .daily-report-sheet {
+    box-shadow: none !important;
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    background: linear-gradient(180deg, #f9fcff, #eaf5ff);
+  }
+
+  .sidebar {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(231, 244, 255, 0.96));
+    box-shadow: 0 12px 28px rgba(31, 95, 224, 0.12);
+  }
+
+  .nav button {
+    border-color: rgba(181, 218, 255, 0.66);
+    background: linear-gradient(180deg, #ffffff, #eef7ff);
+    box-shadow: 0 8px 16px rgba(31, 95, 224, 0.08);
+  }
+
+  .nav button.active,
+  .nav button:hover {
+    background: var(--metal);
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(31, 95, 224, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+  }
+
+  .nav button.active svg,
+  .nav button:hover svg {
+    color: #fff;
+  }
+
+  .topbar {
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  .hero-strip,
+  .patient-hero,
+  .service-hero,
+  .analysis-hero,
+  .course-balance-head {
+    border-radius: 18px;
+  }
+
+  .card.stat::before {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    top: 14px;
+    left: 14px;
+  }
+
+  .card.stat span,
+  .card.stat strong,
+  .card.stat b {
+    margin-left: 44px;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+}
+
 
