@@ -6303,4 +6303,44 @@ body {
   }
 }
 
+/* Final receipt print lock: keep receipt number at the real top-right corner */
+@media print {
+  dialog {
+    width: 200mm !important;
+    max-width: 200mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .receipt {
+    position: relative !important;
+    width: 200mm !important;
+    max-width: 200mm !important;
+    box-sizing: border-box !important;
+    padding: 5mm !important;
+    overflow: visible !important;
+  }
+
+  .receipt-top {
+    position: static !important;
+    padding-right: 48mm !important;
+  }
+
+  .receipt-box {
+    position: absolute !important;
+    top: 5mm !important;
+    right: 5mm !important;
+    width: 42mm !important;
+    min-width: 0 !important;
+    border: 0 !important;
+    text-align: right !important;
+  }
+
+  .receipt-box strong,
+  .receipt-box span,
+  .receipt-box small {
+    padding: 0 !important;
+    border: 0 !important;
+  }
+}
+
 
