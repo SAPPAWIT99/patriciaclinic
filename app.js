@@ -1185,8 +1185,19 @@ function renderSalesAnalysis() {
     </section>`;
 }
 
+function statIcon(label, tone = "") {
+  if (tone === "danger" || label.includes("ค้าง") || label.includes("รอชำระ")) return icons.wallet;
+  if (label.includes("ลูกค้า")) return icons.users;
+  if (label.includes("คิว")) return icons.queue;
+  if (label.includes("นัด")) return icons.calendar;
+  if (label.includes("รายรับ") || label.includes("ยอด") || label.includes("ขาย")) return icons.wallet;
+  if (label.includes("บริการ")) return icons.notes;
+  if (label.includes("คอร์ส") || label.includes("ครั้ง")) return icons.course;
+  return icons.chart;
+}
+
 function stat(label, value, note, tone = "") {
-  return `<article class="card stat${tone ? ` stat-${tone}` : ""}"><span>${label}</span><strong>${value}</strong><b>${note}</b></article>`;
+  return `<article class="card stat${tone ? ` stat-${tone}` : ""}"><i class="stat-icon" aria-hidden="true">${statIcon(label, tone)}</i><span>${label}</span><strong>${value}</strong><b>${note}</b></article>`;
 }
 
 function queueCard(item, index = 0) {

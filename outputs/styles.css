@@ -1751,7 +1751,7 @@ h1 {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm;
+    margin: 6mm 5mm;
   }
 
   html,
@@ -1778,8 +1778,8 @@ h1 {
     display: block;
     position: static !important;
     inset: auto !important;
-    width: 194mm;
-    max-width: 194mm;
+    width: 200mm;
+    max-width: 200mm;
     box-shadow: none !important;
     margin: 0 auto !important;
     padding: 0 !important;
@@ -1801,8 +1801,8 @@ h1 {
 
   .receipt {
     border: 0 !important;
-    width: 132mm;
-    max-width: 132mm;
+    width: 200mm;
+    max-width: 200mm;
     margin: 0 auto !important;
     padding: 5mm;
     border-radius: 0 !important;
@@ -6185,6 +6185,64 @@ body {
 
   .owner-kpi {
     min-height: 108px;
+  }
+}
+
+/* Use meaningful icons in summary cards instead of plain circles */
+.card.stat {
+  position: relative;
+}
+
+.card.stat::before {
+  content: none !important;
+}
+
+.stat-icon {
+  position: absolute;
+  top: 20px;
+  left: 18px;
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.9), transparent 18%),
+    linear-gradient(145deg, #0a3aa2, #2277f0 58%, #59cdf9);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 12px 24px rgba(31, 95, 224, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  z-index: 2;
+}
+
+.stat-icon svg {
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.card.stat.stat-danger .stat-icon {
+  background:
+    radial-gradient(circle at 35% 28%, rgba(255, 255, 255, 0.9), transparent 18%),
+    linear-gradient(145deg, #ff6b7a, #e03444);
+  box-shadow: 0 12px 24px rgba(224, 52, 68, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+@media (max-width: 760px) {
+  .stat-icon {
+    top: 14px;
+    left: 14px;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .stat-icon svg {
+    width: 18px;
+    height: 18px;
   }
 }
 
