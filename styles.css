@@ -6305,10 +6305,34 @@ body {
 
 /* Final receipt print lock: keep receipt number at the real top-right corner */
 @media print {
+  html,
+  body:not(.daily-report-printing) {
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body:not(.daily-report-printing) {
+    width: auto !important;
+  }
+
   dialog {
     width: 200mm !important;
     max-width: 200mm !important;
     box-sizing: border-box !important;
+    min-height: 0 !important;
+    height: auto !important;
+    break-before: avoid !important;
+    break-after: avoid !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+  }
+
+  .modal {
+    min-height: 0 !important;
+    height: auto !important;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
 
   .receipt {
@@ -6318,6 +6342,12 @@ body {
     box-sizing: border-box !important;
     padding: 5mm !important;
     overflow: visible !important;
+    break-before: avoid !important;
+    break-after: avoid !important;
+    break-inside: avoid !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    page-break-inside: avoid !important;
   }
 
   .receipt-top {
