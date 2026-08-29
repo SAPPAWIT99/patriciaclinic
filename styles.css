@@ -1221,6 +1221,7 @@ h1 {
 
 .receipt {
   grid-column: 1 / -1;
+  position: relative;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1265,8 +1266,8 @@ h1 {
 
 .receipt-box {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 22px;
+  right: 22px;
   width: 170px;
   border: 0;
   text-align: right;
@@ -1831,6 +1832,7 @@ h1 {
 
   .receipt {
     border: 0 !important;
+    position: relative;
     width: 200mm;
     max-width: 200mm;
     box-sizing: border-box;
@@ -1845,7 +1847,7 @@ h1 {
   }
 
   .receipt-top {
-    position: relative;
+    position: static;
     gap: 6mm;
     padding-right: 36mm;
     padding-bottom: 3mm;
@@ -1870,8 +1872,8 @@ h1 {
 
   .receipt-box {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: 5mm;
+    right: 5mm;
     width: 42mm;
     border: 0 !important;
     text-align: right;
