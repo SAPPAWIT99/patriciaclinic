@@ -6336,6 +6336,60 @@ body {
   font-weight: 1000;
 }
 
+.outstanding-total small {
+  display: block;
+  margin-top: 4px;
+  color: #7c8ba3;
+  font-weight: 900;
+}
+
+.outstanding-filter-panel {
+  padding: 14px 16px;
+}
+
+.filter-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.filter-line > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.filter-line strong {
+  color: #0b2142;
+  font-size: 15px;
+}
+
+.segmented-filter {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid rgba(96, 165, 250, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.segmented-filter button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  font-weight: 900;
+}
+
+.segmented-filter button.active {
+  border-color: rgba(37, 99, 235, 0.35);
+  background: linear-gradient(135deg, #eaf7ff, #fff);
+  color: #075ed0;
+  box-shadow: 0 8px 18px rgba(31, 95, 224, 0.12);
+}
+
 .outstanding-panel .panel-head {
   align-items: center;
 }
@@ -6374,6 +6428,20 @@ body {
   .outstanding-total {
     min-width: 0;
     text-align: left;
+  }
+
+  .filter-line {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .segmented-filter {
+    overflow-x: auto;
+  }
+
+  .segmented-filter button {
+    flex: 1;
+    min-width: 96px;
   }
 }
 

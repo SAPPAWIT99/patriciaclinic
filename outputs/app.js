@@ -126,6 +126,7 @@ let patientDetailTab = "records";
 let dashboardPeriod = "day";
 let dashboardPaymentMethod = "ทั้งหมด";
 let weeklySalesDays = 7;
+let outstandingPeriod = "all";
 let salesAnalysisYear = todayIso.slice(0, 4);
 let salesAnalysisMonths = [];
 let dailyReportDate = todayIso;
@@ -1311,15 +1312,44 @@ function patientByName(patientName) {
   return state.patients.find((patient) => patient.name === patientName) || { id: "-", name: patientName };
 }
 
+function outstandingPeriodLabel(period = outstandingPeriod) {
+  if (period === "week") return "รายสัปดาห์";
+  if (period === "month") return "รายเดือน";
+  return "ทั้งหมด";
+}
+
+function outstandingPeriodNote(period = outstandingPeriod) {
+  if (period === "week") return "7 วันล่าสุด";
+  if (period === "month") return thaiDateLabel(`${todayIso.slice(0, 7)}-01`, { month: "long", year: "numeric" });
+  return "ทุกช่วงเวลา";
+}
+
+function filterOutstandingBillsByPeriod(bills) {
+  if (outstandingPeriod === "week") {
+    const weeklyIds = new Set(billsForLastDays(7).map((bill) => bill.id));
+    return bills.filter((bill) => weeklyIds.has(bill.id));
+  }
+  if (outstandingPeriod === "month") {
+    const monthKey = todayIso.slice(0, 7);
+    return bills.filter((bill) => bill.date?.slice(0, 7) === monthKey);
+  }
+  return bills;
+}
+
 function renderOutstandingPayments() {
-  const rows = state.billing
-    .filter((bill) => billOutstandingAmount(bill) > 0)
+  const pendingRows = state.billing.filter((bill) => billOutstandingAmount(bill) > 0);
+  const rows = filterOutstandingBillsByPeriod(pendingRows)
     .filter(matchesSearch)
     .sort((a, b) => billDate(b) - billDate(a));
   const totalDue = rows.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
   const totalPaid = rows.reduce((sum, bill) => sum + Number(bill.paidAmount || 0), 0);
   const patientCount = new Set(rows.map((bill) => bill.patient).filter(Boolean)).size;
   const oldest = rows.length ? rows.reduce((old, bill) => billDate(bill) < billDate(old) ? bill : old, rows[0]) : null;
+  const periodOptions = [
+    ["all", "ทั้งหมด"],
+    ["week", "รายสัปดาห์"],
+    ["month", "รายเดือน"]
+  ];
 
   return `
     <section class="outstanding-hero">
@@ -1331,6 +1361,18 @@ function renderOutstandingPayments() {
       <div class="outstanding-total">
         <span>ยอดค้างรวม</span>
         <strong>${money(totalDue)}</strong>
+        <small>${outstandingPeriodLabel()} · ${outstandingPeriodNote()}</small>
+      </div>
+    </section>
+    <section class="panel outstanding-filter-panel">
+      <div class="filter-line">
+        <div>
+          <strong>ช่วงเวลาที่แสดง</strong>
+          <span class="muted">${outstandingPeriodNote()}</span>
+        </div>
+        <div class="segmented-filter" role="group" aria-label="เลือกช่วงเวลารายการค้างชำระ">
+          ${periodOptions.map(([value, label]) => `<button class="${outstandingPeriod === value ? "active" : ""}" data-action="outstandingPeriod" data-period="${value}">${label}</button>`).join("")}
+        </div>
       </div>
     </section>
     <section class="grid stats">
@@ -2836,6 +2878,10 @@ contentEl.addEventListener("click", (event) => {
   }
   if (button.dataset.action === "dashboardPeriod") {
     dashboardPeriod = button.dataset.period;
+    render();
+  }
+  if (button.dataset.action === "outstandingPeriod") {
+    outstandingPeriod = button.dataset.period || "all";
     render();
   }
   if (button.dataset.action === "salesAllMonths") {
