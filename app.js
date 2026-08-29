@@ -37,6 +37,7 @@ const menu = [
   ["patients", "ลูกค้า (CRM)", "ศูนย์กลางข้อมูล ประวัติรักษา และคอร์ส"],
   ["appointments", "นัดหมาย", "ตารางนัดและการติดตาม"],
   ["billing", "แคชเชียร์ / ซื้อคอร์ส", "ใบเสร็จและยอดค้างชำระ"],
+  ["outstanding", "รายการค้างชำระ", "รวมใบเสร็จที่ยังชำระไม่ครบ"],
   ["courses", "จัดการตัดคอร์ส", "ติดตามคอร์สลูกค้าและจำนวนครั้งคงเหลือ"],
   ["services", "จัดการบริการ/คอร์ส", "รายการสินค้า บริการ และแพ็กเกจคอร์ส"],
   ["salesAnalysis", "วิเคราะห์การขาย", "บริการขายดีและยอดขายตามเดือน"],
@@ -56,6 +57,7 @@ const menuIcons = {
   patients: icons.users,
   records: icons.notes,
   billing: icons.wallet,
+  outstanding: icons.wallet,
   financeSummary: icons.chart,
   courses: icons.course,
   services: icons.notes,
@@ -929,7 +931,7 @@ function renderDashboard() {
     </section>
     <section class="grid two-col" style="margin-top:16px">
       <div class="panel">
-        <div class="panel-head"><h2>สถานะช่วงนี้</h2><button data-view="billing" class="secondary">ดูการเงิน</button></div>
+        <div class="panel-head"><h2>สถานะช่วงนี้</h2><button data-view="outstanding" class="secondary">ดูรายการค้างชำระ</button></div>
         <div class="summary-stack">
           <article><span>ยอดรับชำระ</span><strong>${money(income)}</strong></article>
           <article class="${pending ? "summary-danger" : ""}"><span>ยอดค้างชำระ</span><strong>${money(pending)}</strong></article>
@@ -1309,6 +1311,92 @@ function patientByName(patientName) {
   return state.patients.find((patient) => patient.name === patientName) || { id: "-", name: patientName };
 }
 
+function renderOutstandingPayments() {
+  const rows = state.billing
+    .filter((bill) => billOutstandingAmount(bill) > 0)
+    .filter(matchesSearch)
+    .sort((a, b) => billDate(b) - billDate(a));
+  const totalDue = rows.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
+  const totalPaid = rows.reduce((sum, bill) => sum + Number(bill.paidAmount || 0), 0);
+  const patientCount = new Set(rows.map((bill) => bill.patient).filter(Boolean)).size;
+  const oldest = rows.length ? rows.reduce((old, bill) => billDate(bill) < billDate(old) ? bill : old, rows[0]) : null;
+
+  return `
+    <section class="outstanding-hero">
+      <div>
+        <span class="section-kicker">ติดตามยอดค้างชำระ</span>
+        <h2>รายการค้างชำระทั้งหมด</h2>
+        <p>รวมใบเสร็จที่ยังชำระไม่ครบ สามารถเปิดดูใบเสร็จและอัปเดตรับชำระได้จากหน้านี้</p>
+      </div>
+      <div class="outstanding-total">
+        <span>ยอดค้างรวม</span>
+        <strong>${money(totalDue)}</strong>
+      </div>
+    </section>
+    <section class="grid stats">
+      ${stat("ยอดค้างชำระทั้งหมด", money(totalDue), `${rows.length} ใบเสร็จต้องติดตาม`, "danger")}
+      ${stat("ลูกค้าที่ค้างชำระ", patientCount.toLocaleString("th-TH"), "รวมจากรายการที่ค้นหา")}
+      ${stat("ยอดรับแล้วบางส่วน", money(totalPaid), "เฉพาะบิลที่ยังค้าง")}
+      ${stat("รายการเก่าสุด", oldest ? thaiDateLabel(oldest.date, { day: "2-digit", month: "short" }) : "-", "ควรติดตามก่อน")}
+    </section>
+    <section class="panel outstanding-panel">
+      <div class="panel-head">
+        <h2>บิลที่ยังค้างชำระ</h2>
+        <span class="muted">${rows.length.toLocaleString("th-TH")} รายการ</span>
+      </div>
+      ${renderOutstandingPaymentsTable(rows)}
+    </section>`;
+}
+
+function renderOutstandingPaymentsTable(rows) {
+  if (!rows.length) return emptyState();
+  const body = rows.map((bill) => {
+    const patient = patientByName(bill.patient);
+    const amount = Number(bill.amount || 0);
+    const paid = Number(bill.paidAmount || 0);
+    const due = billOutstandingAmount(bill);
+    return `
+      <tr>
+        <td><strong>${thaiDateLabel(bill.date, { day: "2-digit", month: "short" })}</strong><div class="muted">${escapeHtml(bill.id || "-")}</div></td>
+        <td>
+          <div class="name-cell">
+            <span class="avatar">${initials(bill.patient || "-")}</span>
+            <div><strong>${escapeHtml(bill.patient || "-")}</strong><div class="muted">${escapeHtml(patient.id || "-")}</div></div>
+          </div>
+        </td>
+        <td><strong>${escapeHtml(bill.item || "-")}</strong><div class="muted">${escapeHtml(bill.paymentMethod || "ยังไม่ระบุช่องทาง")}</div></td>
+        <td>${money(amount)}</td>
+        <td>${money(paid)}</td>
+        <td><strong class="outstanding-due">${money(due)}</strong></td>
+        <td>${badge(bill.status || "รอชำระ")}</td>
+        <td>
+          <div class="outstanding-actions">
+            <button class="action-button view-action receipt-view-button" title="ดูใบเสร็จ" aria-label="ดูใบเสร็จ" data-action="viewReceipt" data-id="${escapeHtml(bill.id)}">${icons.notes}<span>ดูใบเสร็จ</span></button>
+            <button class="pay-due-button" title="อัปเดตรับชำระ" aria-label="อัปเดตรับชำระ" data-action="payOutstandingBill" data-id="${escapeHtml(bill.id)}">${icons.wallet}<span>ชำระค้าง</span></button>
+          </div>
+        </td>
+      </tr>`;
+  }).join("");
+  return `
+    <div class="table-wrap outstanding-table">
+      <table>
+        <thead>
+          <tr>
+            <th>วันที่ / ใบเสร็จ</th>
+            <th>ลูกค้า</th>
+            <th>รายการ</th>
+            <th>ยอดสุทธิ</th>
+            <th>รับแล้ว</th>
+            <th>ค้างชำระ</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>`;
+}
+
 function renderPatientsCenter() {
   const query = searchTerm.toLowerCase();
   const rows = state.patients.filter((patient) => {
@@ -1437,7 +1525,7 @@ function renderPendingPaymentNotice(patientName) {
       <strong>มีรายการค้างชำระ</strong>
       <span>${pending.bills.length} ใบเสร็จ · ยอดค้างรวม ${money(pending.amount)}</span>
     </div>
-    <button class="secondary" data-view="billing">${icons.wallet}ดูการเงิน</button>
+    <button class="secondary" data-view="outstanding">${icons.wallet}ดูรายการค้างชำระ</button>
   </div>`;
 }
 
@@ -2405,6 +2493,119 @@ function openPayOutstandingCourse(courseId) {
   modal.showModal();
 }
 
+function openPayOutstandingBill(billId) {
+  const bill = state.billing.find((item) => item.id === billId);
+  if (!bill) return;
+  const totalDue = billOutstandingAmount(bill);
+  if (totalDue <= 0) {
+    alert("ใบเสร็จนี้ไม่มีรายการค้างชำระ");
+    return;
+  }
+  const patient = patientByName(bill.patient);
+  const paidBefore = Number(bill.paidAmount || 0);
+  modalTitle.textContent = "อัปเดตยอดค้างชำระ";
+  modalSave.textContent = "ยืนยันรับชำระ";
+  modalFields.onclick = null;
+  modalFields.oninput = null;
+  modalFields.innerHTML = `
+    <div class="payment-settle">
+      <div class="settle-summary">
+        <span>ลูกค้า</span>
+        <strong>${escapeHtml(bill.patient || "-")}</strong>
+        <span>ใบเสร็จ</span>
+        <strong>${escapeHtml(bill.id || "-")}</strong>
+        <span>ยอดค้าง</span>
+        <b>${money(totalDue)}</b>
+      </div>
+      <div class="pending-bill-list">
+        <div><span>รายการ</span><strong>${escapeHtml(bill.item || "-")}</strong></div>
+        <div><span>ยอดสุทธิ</span><strong>${money(bill.amount || 0)}</strong></div>
+        <div><span>รับแล้ว</span><strong>${money(paidBefore)}</strong></div>
+      </div>
+      <div class="field full">
+        <label>ช่องทางชำระเงิน</label>
+        <div class="payment-methods">
+          <label><input type="radio" name="paymentMethod" value="เงินสด" ${bill.paymentMethod === "เงินสด" || !bill.paymentMethod ? "checked" : ""}><span>เงินสด</span></label>
+          <label><input type="radio" name="paymentMethod" value="โอนเงิน" ${bill.paymentMethod === "โอนเงิน" ? "checked" : ""}><span>โอนเงิน</span></label>
+          <label><input type="radio" name="paymentMethod" value="บัตรเครดิต" ${bill.paymentMethod === "บัตรเครดิต" ? "checked" : ""}><span>บัตรเครดิต</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>ยอดรับเงินครั้งนี้</label>
+        <input name="paidAmount" type="number" min="0" max="${totalDue}" value="${totalDue}" required>
+      </div>
+      <div class="field">
+        <label>วันที่รับชำระ</label>
+        <input name="paymentDate" type="date" value="${todayIso}" required>
+      </div>
+      <div class="field full">
+        <label>ผู้ขาย / ผู้รับเงิน</label>
+        <input name="seller" value="${escapeHtml(bill.seller || "แพทริเซียคลินิกเวชกรรมเพชรบุรี-บ้านแหลม")}">
+      </div>
+    </div>
+  `;
+  modalFields.oninput = (event) => {
+    if (event.target.name !== "paidAmount") return;
+    const value = Math.max(0, Math.min(Number(event.target.value || 0), totalDue));
+    event.target.value = String(value);
+  };
+  modalSave.onclick = (event) => {
+    event.preventDefault();
+    const form = new FormData(modal.querySelector("form"));
+    const payNow = Math.max(0, Math.min(Number(form.get("paidAmount") || 0), totalDue));
+    if (payNow <= 0) {
+      alert("กรุณาใส่ยอดรับเงิน");
+      return;
+    }
+    const paymentDate = String(form.get("paymentDate") || todayIso);
+    const paymentMethod = String(form.get("paymentMethod") || "เงินสด");
+    const seller = String(form.get("seller") || "");
+    const nextPaid = paidBefore + payNow;
+    state.billing = state.billing.map((item) => item.id === bill.id ? {
+      ...item,
+      paidAmount: nextPaid,
+      paymentMethod,
+      seller,
+      paidDate: paymentDate,
+      status: nextPaid >= Number(item.amount || 0) ? "ชำระแล้ว" : "รอชำระ"
+    } : item);
+    const receiptBill = {
+      id: `B-PAY-${String(Date.now()).slice(-6)}`,
+      patient: bill.patient,
+      date: paymentDate,
+      item: `รับชำระยอดค้าง ${bill.item || bill.id}`,
+      amount: payNow,
+      subtotal: payNow,
+      discount: 0,
+      paidAmount: payNow,
+      paymentMethod,
+      seller,
+      status: "ชำระแล้ว"
+    };
+    const receiptItems = [{
+      selected: { name: bill.item || "รับชำระยอดค้าง", price: payNow, sessions: 1 },
+      qty: 1
+    }];
+    saveState();
+    render();
+    modalTitle.textContent = "ใบเสร็จรับเงิน";
+    modalFields.onclick = null;
+    modalFields.oninput = null;
+    modalFields.innerHTML = renderReceipt(patient, receiptItems, receiptBill);
+    modalFields.onclick = (receiptEvent) => {
+      if (receiptEvent.target.closest('[data-action="printReceipt"]')) window.print();
+      if (receiptEvent.target.closest('[data-action="saveReceiptImage"]')) saveReceiptAsImage();
+    };
+    modalSave.textContent = "ปิด";
+    modalSave.onclick = (closeEvent) => {
+      closeEvent.preventDefault();
+      modal.close();
+      render();
+    };
+  };
+  modal.showModal();
+}
+
 function renderReceipt(patient, purchased, bill) {
   const dateLabel = new Date(`${bill.date}T00:00:00`).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "numeric" });
   const change = Math.max(Number(bill.paidAmount || 0) - Number(bill.amount || 0), 0);
@@ -2601,6 +2802,7 @@ function render() {
   else if (currentView === "dailyReport") contentEl.innerHTML = renderDailyReport();
   else if (currentView === "patients") contentEl.innerHTML = renderPatientsCenter();
   else if (currentView === "financeSummary") contentEl.innerHTML = renderFinanceSummary();
+  else if (currentView === "outstanding") contentEl.innerHTML = renderOutstandingPayments();
   else if (currentView === "courses") contentEl.innerHTML = renderCourseDeductionManager();
   else if (currentView === "services") contentEl.innerHTML = renderServiceCatalogManager();
   else if (currentView === "salesAnalysis") contentEl.innerHTML = renderSalesAnalysis();
@@ -2673,6 +2875,7 @@ contentEl.addEventListener("click", (event) => {
     render();
   }
   if (button.dataset.action === "payOutstandingCourse") openPayOutstandingCourse(button.dataset.id);
+  if (button.dataset.action === "payOutstandingBill") openPayOutstandingBill(button.dataset.id);
   if (button.dataset.action === "viewReceipt") openReceiptFromBill(button.dataset.id);
   if (button.dataset.action === "deduct") openDeductCourse(button.dataset.id);
   if (button.dataset.action === "edit") openForm(button.dataset.view, button.dataset.id);
