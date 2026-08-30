@@ -1010,19 +1010,21 @@ h1 {
 }
 
 .buy-inline-add {
-  border: 1px dashed #93c5fd;
+  border: 1px solid #38bdf8;
   border-radius: 12px;
-  background: #f8fbff;
-  padding: 10px 12px;
+  background: linear-gradient(135deg, #e0f2fe, #ffffff 58%, #dbeafe);
+  padding: 12px 14px;
+  box-shadow: 0 10px 22px rgba(14, 165, 233, 0.14);
 }
 
 .buy-inline-add summary {
-  color: #075985;
-  font-weight: 900;
+  color: #063c88;
+  font-size: 15px;
+  font-weight: 1000;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   list-style: none;
 }
 
@@ -1030,10 +1032,22 @@ h1 {
   display: none;
 }
 
+.inline-add-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0f62d4, #38bdf8);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  box-shadow: 0 8px 18px rgba(31, 95, 224, 0.22);
+}
+
 .buy-inline-add summary svg {
   width: 18px;
   height: 18px;
-  stroke-width: 2.6;
+  stroke-width: 3;
 }
 
 .buy-inline-add-grid {
@@ -3042,6 +3056,26 @@ tr:last-child td {
   min-width: 0;
   display: grid;
   gap: 6px;
+}
+
+.transaction-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.transaction-line span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.transaction-line b {
+  flex: 0 0 auto;
+  color: #075ed0;
+  font-size: 16px;
+  font-weight: 1000;
 }
 
 .history-actions {
@@ -5083,6 +5117,12 @@ td {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
+  .transaction-line {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
   .course-item-actions,
   .table-actions,
   .history-actions {
@@ -5774,6 +5814,19 @@ textarea {
 .buy-course-option:has(input:checked) {
   border-color: #38bdf8;
   background: linear-gradient(180deg, #ffffff, #ebf8ff);
+}
+
+.buy-course-layout .buy-inline-add {
+  border-color: #18a8f1;
+  background:
+    radial-gradient(circle at 96% 0%, rgba(56, 189, 248, 0.28), transparent 34%),
+    linear-gradient(135deg, #dff5ff, #ffffff 56%, #dbeafe);
+  box-shadow: 0 14px 28px rgba(14, 165, 233, 0.16);
+}
+
+.buy-course-layout .buy-inline-add summary {
+  color: #063c88;
+  font-weight: 1000;
 }
 
 .payment-methods label:has(input:checked),

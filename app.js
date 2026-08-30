@@ -1654,15 +1654,15 @@ function renderPatientCourseRepair(patient, courses) {
 function renderPatientHistory(patient, records, courses) {
   const bills = state.billing.filter((item) => item.patient === patient.name);
   const rows = [
-    ...bills.map((item) => ({ date: item.date, text: `${item.item} · ${money(item.amount)}`, type: item.status, billId: item.id })),
-    ...courses.map((item) => ({ date: item.startDate, text: `ซื้อคอร์ส ${item.course}`, type: courseStatus(item) })),
+    ...bills.map((item) => ({ date: item.date, text: item.item, amount: Number(item.amount || 0), type: item.status, billId: item.id })),
+    ...courses.map((item) => ({ date: item.startDate, text: `ซื้อคอร์ส ${item.course}`, amount: Number(item.price || 0), type: courseStatus(item) })),
     ...records.map((item) => ({ date: item.date, text: `บันทึกเวชระเบียน`, type: "ข้อมูล" }))
   ].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   if (!rows.length) return emptyState();
   return `<div class="timeline">${rows.map((row) => `<article class="timeline-item transaction-item">
     <div>
       <strong>${escapeHtml(row.date || "-")}</strong>
-      <span>${escapeHtml(row.text)}</span>
+      <span class="transaction-line"><span>${escapeHtml(row.text)}</span>${row.amount != null ? `<b>${money(row.amount)}</b>` : ""}</span>
       ${badge(row.type)}
     </div>
     ${row.billId ? `<div class="history-actions">
@@ -2327,7 +2327,7 @@ function openBuyCourse(patientId) {
         </label>
         <div class="buy-search-result muted" id="buySearchResult"></div>
         <details class="buy-inline-add">
-          <summary>${icons.plus}<span>ไม่มีในรายการ? เพิ่มบริการ/คอร์สใหม่</span></summary>
+          <summary><span class="inline-add-icon">${icons.plus}</span><span>ไม่มีในรายการ? เพิ่มบริการ/คอร์สใหม่</span></summary>
           <div class="buy-inline-add-grid">
             <label>
               <span>ชื่อบริการ/คอร์ส</span>
