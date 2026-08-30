@@ -914,6 +914,9 @@ function renderDashboard() {
         <h2>Dashboard <b>LIVE</b></h2>
         <p>ภาพรวมคลินิกและระบบขายในหน้าจอเดียว</p>
       </div>
+      <div class="dashboard-marquee" aria-label="ประกาศอัปเดตข้อมูลคอร์ส">
+        <span>${icons.users} ให้อีฟช่วยอัพเดทข้อมูลคอร์สของลูกค้าให้เป็นปัจจุบัน เพื่อปรับปรุงข้อมูลให้ถูก</span>
+      </div>
       <div class="dashboard-live-actions">
         <span>${thaiDateLabel(todayIso, { weekday: "short" })}</span>
         <button data-view="queue">${icons.queue}จัดการคิว</button>
