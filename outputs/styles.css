@@ -841,6 +841,52 @@ h1 {
   margin-top: 16px;
 }
 
+.ledger-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  gap: 14px;
+  margin-top: 14px;
+  align-items: stretch;
+}
+
+.ledger-month-picker,
+.ledger-import-note {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 70px;
+  padding: 12px 14px;
+  border: 1px solid rgba(96, 165, 250, 0.34);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(232, 246, 255, 0.92));
+  box-shadow: 0 12px 28px rgba(31, 95, 224, 0.08);
+}
+
+.ledger-month-picker span,
+.ledger-import-note span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ledger-month-picker select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid rgba(147, 197, 253, 0.8);
+  border-radius: 10px;
+  background: #fff;
+  color: #0b2142;
+  font: inherit;
+  font-weight: 900;
+  padding: 0 12px;
+}
+
+.ledger-import-note strong {
+  color: #075ed0;
+  font-weight: 1000;
+}
+
 .income-expense-tabs {
   display: flex;
   gap: 8px;
@@ -888,6 +934,13 @@ h1 {
   margin: 0;
   color: var(--muted);
   font-weight: 700;
+}
+
+.ledger-head-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .income-ledger-table table {
@@ -5239,11 +5292,16 @@ td {
     padding: 18px;
   }
 
+  .ledger-toolbar {
+    grid-template-columns: 1fr;
+  }
+
   .ledger-net {
     min-width: 0;
     text-align: left;
   }
 
+  .ledger-head-actions,
   .ledger-sheet-head button {
     width: 100%;
   }

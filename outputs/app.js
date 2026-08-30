@@ -73,6 +73,7 @@ const todayIso = today.toISOString().slice(0, 10);
 
 const seedState = {
   deletedServiceCatalogIds: ["SV-001", "SV-002", "SV-003"],
+  importedExcelBatches: [],
   patients: [
     { id: "P-1001", name: "ปาริณา ศรีสุข", phone: "081-234-7788", age: 34, allergy: "ไม่มี", lastVisit: todayIso, tag: "ติดตามผล" },
     { id: "P-1002", name: "กิตติพงศ์ วัฒนา", phone: "089-777-2401", age: 46, allergy: "Penicillin", lastVisit: "2026-06-01", tag: "เรื้อรัง" },
@@ -95,6 +96,7 @@ const seedState = {
     { id: "B-7781", patient: "ณัฐชา แก้วใส", date: todayIso, item: "ทำแผลและยา", amount: 850, status: "ชำระแล้ว" },
     { id: "B-7782", patient: "ปาริณา ศรีสุข", date: todayIso, item: "ตรวจและเลเซอร์", amount: 2400, status: "รอชำระ" }
   ],
+  financeIncome: [],
   financeExpenses: [],
   staffFees: [],
   doctorDf: [],
@@ -139,9 +141,11 @@ let salesAnalysisYear = todayIso.slice(0, 4);
 let salesAnalysisMonths = [];
 let dailyReportDate = todayIso;
 let incomeExpenseTab = "income";
+let incomeExpenseMonth = todayIso.slice(0, 7);
 
 const incomeExpenseTabs = [
   ["income", "รายรับ"],
+  ["financeIncome", "คีย์รายรับ"],
   ["financeExpenses", "รายจ่าย"],
   ["incomeSummary", "สรุปรายรับ-รายจ่าย"],
   ["monthlySales", "สรุปยอดขายประจำเดือน"],
@@ -163,6 +167,12 @@ const loginForm = document.querySelector("#loginForm");
 const loginError = document.querySelector("#loginError");
 const logoutButton = document.querySelector("#logoutButton");
 
+const excelImportBatches = [
+  { id: "excel-2026-08", data: window.excelImport202608 || null }
+];
+
+const ledgerDataKeys = ["financeIncome", "financeExpenses", "staffFees", "doctorDf", "needleFees", "followups", "agents"];
+
 function setModalSize(size = "default") {
   const form = modal.querySelector("form");
   if (!form) return;
@@ -173,6 +183,19 @@ function setModalSize(size = "default") {
 
 function normalizeState(data = {}) {
   const next = { ...structuredClone(seedState), ...data };
+  ledgerDataKeys.forEach((key) => {
+    next[key] = Array.isArray(next[key]) ? next[key] : [];
+  });
+  next.importedExcelBatches = Array.isArray(next.importedExcelBatches) ? next.importedExcelBatches : [];
+  excelImportBatches.forEach((batch) => {
+    if (!batch.data || next.importedExcelBatches.includes(batch.id)) return;
+    ledgerDataKeys.forEach((key) => {
+      const incoming = Array.isArray(batch.data[key]) ? batch.data[key] : [];
+      const existingIds = new Set(next[key].map((row) => row.id));
+      next[key] = [...incoming.filter((row) => !existingIds.has(row.id)), ...next[key]];
+    });
+    next.importedExcelBatches = [...next.importedExcelBatches, batch.id];
+  });
   const deletedIds = new Set([
     ...seedState.deletedServiceCatalogIds,
     ...(Array.isArray(next.deletedServiceCatalogIds) ? next.deletedServiceCatalogIds : [])
@@ -1064,9 +1087,22 @@ function incomeRowsFromBills() {
       spay: paymentAmountForMethod(bill, "SPay"),
       total: paid,
       note: bill.status === "รอชำระ" ? `ค้าง ${money(billOutstandingAmount(bill))}` : "",
-      newCustomer: state.patients.find((patient) => patient.name === bill.patient)?.tag === "ใหม่" ? "ใหม่" : ""
+      newCustomer: state.patients.find((patient) => patient.name === bill.patient)?.tag === "ใหม่" ? "ใหม่" : "",
+      sourceLabel: "ใบเสร็จ"
     };
   });
+}
+
+function manualIncomeRows() {
+  return (state.financeIncome || []).map((row) => ({
+    ...row,
+    sourceLabel: row.source === "excel-2026-08" ? "Excel เดิม" : "คีย์เอง"
+  }));
+}
+
+function allIncomeRows() {
+  return [...incomeRowsFromBills(), ...manualIncomeRows()]
+    .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 }
 
 function sumRows(rows, key) {
@@ -1076,6 +1112,32 @@ function sumRows(rows, key) {
 function rowsForThisMonth(rows, dateKey = "date") {
   const monthKey = todayIso.slice(0, 7);
   return rows.filter((row) => String(row[dateKey] || "").slice(0, 7) === monthKey);
+}
+
+function rowsForLedgerMonth(rows, dateKey = "date") {
+  return rows.filter((row) => String(row[dateKey] || "").slice(0, 7) === incomeExpenseMonth);
+}
+
+function ledgerAvailableMonths() {
+  const months = new Set([todayIso.slice(0, 7), incomeExpenseMonth]);
+  allIncomeRows().forEach((row) => { if (row.date) months.add(String(row.date).slice(0, 7)); });
+  ledgerDataKeys.forEach((key) => {
+    (state[key] || []).forEach((row) => { if (row.date) months.add(String(row.date).slice(0, 7)); });
+  });
+  return [...months].filter(Boolean).sort().reverse();
+}
+
+function ledgerMonthLabel(monthKey) {
+  const [year, month] = String(monthKey).split("-");
+  if (!year || !month) return monthKey;
+  return new Date(`${year}-${month}-01T00:00:00`).toLocaleDateString("th-TH", { month: "long", year: "numeric" });
+}
+
+function ledgerMonthPicker() {
+  const options = ledgerAvailableMonths().map((month) => (
+    `<option value="${month}" ${month === incomeExpenseMonth ? "selected" : ""}>${ledgerMonthLabel(month)}</option>`
+  )).join("");
+  return `<label class="ledger-month-picker"><span>เดือนทำงาน</span><select data-action="incomeExpenseMonth">${options}</select></label>`;
 }
 
 function simpleTable(columns, rows, extraClass = "") {
@@ -1090,27 +1152,35 @@ function ledgerTabButton(key, label) {
 }
 
 function renderIncomeExpenseManager() {
-  const income = rowsForThisMonth(incomeRowsFromBills());
-  const expenses = rowsForThisMonth(state.financeExpenses || []);
+  const income = rowsForLedgerMonth(allIncomeRows());
+  const expenses = rowsForLedgerMonth(state.financeExpenses || []);
   const incomeTotal = sumRows(income, "total");
   const expenseTotal = sumRows(expenses, "amount");
+  const importedCount = ledgerDataKeys.reduce((sum, key) => sum + (state[key] || []).filter((row) => row.source === "excel-2026-08").length, 0);
   return `
     <section class="ledger-hero">
       <div>
         <span class="section-kicker">แทนไฟล์ Excel รายรับ-รายจ่าย</span>
         <h2>รายรับ-รายจ่าย</h2>
-        <p>รวมงานคีย์หลายชีตไว้ในเว็บ ลดการกรอกซ้ำ และดึงรายรับจากใบเสร็จอัตโนมัติ</p>
+        <p>คีย์เฉพาะรายการที่ต้องกรอกเอง ส่วนสรุปยอด, DF, ค่าคอม และยอดสุทธิคำนวณอัตโนมัติ</p>
       </div>
       <div class="ledger-net ${incomeTotal - expenseTotal < 0 ? "danger" : ""}">
-        <span>คงเหลือเดือนนี้</span>
+        <span>คงเหลือ${ledgerMonthLabel(incomeExpenseMonth)}</span>
         <strong>${money(incomeTotal - expenseTotal)}</strong>
       </div>
     </section>
+    <section class="ledger-toolbar">
+      ${ledgerMonthPicker()}
+      <div class="ledger-import-note">
+        <strong>นำเข้าข้อมูลเดิมแล้ว ${importedCount.toLocaleString("th-TH")} รายการ</strong>
+        <span>หลังจากนี้ให้ทำงานบนเว็บอย่างเดียว ไม่ต้องใช้ Excel เดือนใหม่</span>
+      </div>
+    </section>
     <section class="grid stats">
-      ${stat("รายรับเดือนนี้", money(incomeTotal), `${income.length} ใบเสร็จ`)}
-      ${stat("รายจ่ายเดือนนี้", money(expenseTotal), `${expenses.length} รายการ`, expenseTotal ? "danger" : "")}
-      ${stat("โอนเดือนนี้", money(sumRows(income, "transfer")), "จากใบเสร็จ")}
-      ${stat("เงินสดเดือนนี้", money(sumRows(income, "cash")), "จากใบเสร็จ")}
+      ${stat("รายรับเดือนที่เลือก", money(incomeTotal), `${income.length} รายการ`)}
+      ${stat("รายจ่ายเดือนที่เลือก", money(expenseTotal), `${expenses.length} รายการ`, expenseTotal ? "danger" : "")}
+      ${stat("โอน", money(sumRows(income, "transfer")), "คำนวณจากรายรับ")}
+      ${stat("เงินสด", money(sumRows(income, "cash")), "คำนวณจากรายรับ")}
     </section>
     <section class="panel ledger-panel">
       <div class="income-expense-tabs">
@@ -1128,7 +1198,7 @@ function renderIncomeExpenseTab() {
 }
 
 function renderIncomeSheet() {
-  const rows = incomeRowsFromBills().filter(matchesSearch);
+  const rows = rowsForLedgerMonth(allIncomeRows()).filter(matchesSearch);
   const columns = [
     { label: "วันที่", key: "date" }, { label: "ชื่อ", key: "patient" }, { label: "รายการ", key: "item" },
     { label: "มัดจำ", key: "deposit", render: (row) => row.deposit ? money(row.deposit) : "-" },
@@ -1138,19 +1208,23 @@ function renderIncomeSheet() {
     { label: "รูดบัตร", key: "card", render: (row) => row.card ? money(row.card) : "-" },
     { label: "SPay", key: "spay", render: (row) => row.spay ? money(row.spay) : "-" },
     { label: "ยอดรวม", key: "total", render: (row) => money(row.total) },
+    { label: "ที่มา", key: "sourceLabel", render: (row) => badge(row.sourceLabel || "-") },
     { label: "หมายเหตุ", key: "note" }, { label: "ลค.ใหม่", key: "newCustomer" }
   ];
   return `
     <div class="ledger-sheet-head">
-      <div><h3>รายรับ</h3><p>ดึงจากใบเสร็จและการซื้อคอร์สในระบบอัตโนมัติ</p></div>
-      <button data-view="billing" class="secondary">${icons.wallet}ไปหน้าแคชเชียร์</button>
+      <div><h3>รายรับ</h3><p>รวมใบเสร็จในระบบและรายรับเดิมที่นำเข้าจาก Excel ตามเดือนที่เลือก</p></div>
+      <div class="ledger-head-actions">
+        <button data-action="add" data-view="financeIncome" class="secondary">${icons.plus}คีย์รายรับเอง</button>
+        <button data-view="billing" class="secondary">${icons.wallet}ไปหน้าแคชเชียร์</button>
+      </div>
     </div>
     ${simpleTable(columns, rows, "income-ledger-table")}`;
 }
 
 function renderEditableLedgerSheet(view) {
   const setup = viewConfig[view];
-  const rows = (state[view] || []).filter(matchesSearch).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const rows = rowsForLedgerMonth(state[view] || []).filter(matchesSearch).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
   return `
     <div class="ledger-sheet-head">
       <div><h3>${setup.addLabel.replace("เพิ่ม", "")}</h3><p>คีย์ข้อมูลแทนชีต Excel เดิม แก้ไขและลบได้</p></div>
@@ -1160,10 +1234,10 @@ function renderEditableLedgerSheet(view) {
 }
 
 function renderIncomeExpenseSummarySheet() {
-  const income = rowsForThisMonth(incomeRowsFromBills());
-  const expenses = rowsForThisMonth(state.financeExpenses || []);
+  const income = rowsForLedgerMonth(allIncomeRows());
+  const expenses = rowsForLedgerMonth(state.financeExpenses || []);
   const rows = [{
-    date: todayIso.slice(0, 7),
+    date: incomeExpenseMonth,
     cash: sumRows(income, "cash"),
     transfer: sumRows(income, "transfer"),
     card: sumRows(income, "card"),
@@ -1183,12 +1257,12 @@ function renderIncomeExpenseSummarySheet() {
 }
 
 function renderMonthlySalesSheet() {
-  const income = rowsForThisMonth(incomeRowsFromBills());
-  const dfTotal = rowsForThisMonth(state.doctorDf || []).reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100, 0);
-  const agentTotal = rowsForThisMonth(state.agents || []).reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100, 0);
+  const income = rowsForLedgerMonth(allIncomeRows());
+  const dfTotal = rowsForLedgerMonth(state.doctorDf || []).reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100, 0);
+  const agentTotal = rowsForLedgerMonth(state.agents || []).reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100, 0);
   const total = sumRows(income, "total");
   const rows = [{
-    date: todayIso.slice(0, 7), online: 0, admin: 0, staff: total, total, dfBase: total, df: dfTotal, agent: agentTotal,
+    date: incomeExpenseMonth, online: 0, admin: 0, staff: total, total, dfBase: total, df: dfTotal, agent: agentTotal,
     afterDf: total - dfTotal - agentTotal, newCustomer: income.filter((row) => row.newCustomer).length, oldCustomer: income.filter((row) => !row.newCustomer).length
   }];
   const columns = [
@@ -2174,6 +2248,17 @@ const viewConfig = {
       { label: "สถานะ", key: "status", render: (row) => badge(row.status) }
     ]
   },
+  financeIncome: {
+    addLabel: "เพิ่มรายรับ",
+    filters: [],
+    fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["patient", "ชื่อ"], ["item", "รายการ"], ["deposit", "มัดจำ", "number"], ["bl", "BL", "number"], ["up", "UP", "number"], ["courseUse", "ใช้คอร์ส", "number"], ["cash", "เงินสด", "number"], ["transfer", "โอน", "number"], ["card", "รูดบัตร", "number"], ["spay", "SPay", "number"], ["total", "ยอดรวม", "number"], ["note", "หมายเหตุ"]],
+    columns: [
+      { label: "วันที่", key: "date" }, { label: "ชื่อ", key: "patient" }, { label: "รายการ", key: "item" },
+      { label: "เงินสด", key: "cash", render: (row) => money(row.cash || 0) }, { label: "โอน", key: "transfer", render: (row) => money(row.transfer || 0) },
+      { label: "รูดบัตร", key: "card", render: (row) => money(row.card || 0) }, { label: "SPay", key: "spay", render: (row) => money(row.spay || 0) },
+      { label: "ยอดรวม", key: "total", render: (row) => money(row.total || 0) }, { label: "ที่มา", key: "source", render: (row) => row.source === "excel-2026-08" ? badge("Excel เดิม") : badge("คีย์เอง") }
+    ]
+  },
   financeExpenses: {
     addLabel: "เพิ่มรายจ่าย",
     filters: [],
@@ -2283,8 +2368,9 @@ const viewConfig = {
 function openForm(view, id) {
   const setup = viewConfig[view];
   const existing = id ? state[view].find((item) => item.id === id) : null;
-  const generatedPrefixes = { serviceCatalog: "SV", courses: "C", financeExpenses: "EX", staffFees: "HF", doctorDf: "DF", needleFees: "ND", followups: "FU", agents: "AG" };
+  const generatedPrefixes = { serviceCatalog: "SV", courses: "C", financeIncome: "FI", financeExpenses: "EX", staffFees: "HF", doctorDf: "DF", needleFees: "ND", followups: "FU", agents: "AG" };
   const generatedId = generatedPrefixes[view] ? `${generatedPrefixes[view]}-${String(Date.now()).slice(-6)}` : "";
+  const optionalFields = new Set(["note", "newCustomer", "oldCustomer", "deposit", "bl", "up", "courseUse", "cash", "transfer", "card", "spay", "total", "amount", "followupDate", "bankAccount"]);
   setModalSize("default");
   const patientOptions = state.patients.map((patient) => (
     `<option value="${escapeHtml(patient.name)}" label="${escapeHtml(`${patient.id || "-"} · ${patient.phone || "-"}`)}"></option>`
@@ -2315,7 +2401,7 @@ function openForm(view, id) {
       : "";
     const value = existing?.[key] ?? defaultValue;
     const full = type === "textarea" ? " full" : "";
-    const required = key === "nextDate" ? "" : " required";
+    const required = key === "nextDate" || optionalFields.has(key) ? "" : " required";
     const listAttr = view === "appointments" && key === "patient"
       ? ' list="appointmentPatientOptions" autocomplete="off"'
       : view === "courses" && key === "patient"
@@ -2354,6 +2440,15 @@ function openForm(view, id) {
     setup.fields.forEach(([key, , type]) => {
       if (type === "number") item[key] = Number(item[key]);
     });
+    if (view === "financeIncome") {
+      const paymentTotal = Number(item.cash || 0) + Number(item.transfer || 0) + Number(item.card || 0) + Number(item.spay || 0);
+      item.total = Number(item.total || paymentTotal || 0);
+      item.source = item.source || "manual";
+    }
+    if (view === "financeExpenses") {
+      item.amount = Number(item.amount || 0) || Number(item.cash || 0) + Number(item.transfer || 0);
+      item.source = item.source || "manual";
+    }
     if (view === "records") {
       item.patient = `${item.firstName || ""} ${item.lastName || ""}`.trim();
       syncPatientFromRecord(item);
@@ -3454,6 +3549,10 @@ contentEl.addEventListener("change", (event) => {
   }
   if (event.target.dataset.action === "dailyReportDate") {
     dailyReportDate = event.target.value || todayIso;
+    render();
+  }
+  if (event.target.dataset.action === "incomeExpenseMonth") {
+    incomeExpenseMonth = event.target.value || todayIso.slice(0, 7);
     render();
   }
 });
