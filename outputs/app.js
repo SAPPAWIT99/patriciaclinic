@@ -2327,7 +2327,7 @@ function openBuyCourse(patientId) {
         </label>
         <div class="buy-search-result muted" id="buySearchResult"></div>
         <details class="buy-inline-add">
-          <summary><span class="inline-add-icon">${icons.plus}</span><span>ไม่มีในรายการ? เพิ่มบริการ/คอร์สใหม่</span></summary>
+          <summary><span class="inline-add-icon" aria-hidden="true">+</span><span>ไม่มีในรายการ? เพิ่มบริการ/คอร์สใหม่</span></summary>
           <div class="buy-inline-add-grid">
             <label>
               <span>ชื่อบริการ/คอร์ส</span>
