@@ -34,6 +34,7 @@ const menu = [
   ["dashboard", "Dashboard", "ภาพรวมระบบคลินิก"],
   ["ownerSummary", "ภาพรวมวันนี้", "บริการ คอร์ส และยอดเงินประจำวัน"],
   ["dailyReport", "รายงานประจำวัน", "ปิดยอดและพิมพ์เก็บแฟ้ม"],
+  ["incomeExpense", "รายรับ-รายจ่าย", "แทนไฟล์ Excel หลายชีตและสรุปยอด"],
   ["patients", "ลูกค้า (CRM)", "ศูนย์กลางข้อมูล ประวัติรักษา และคอร์ส"],
   ["appointments", "นัดหมาย", "ตารางนัดและการติดตาม"],
   ["billing", "แคชเชียร์ / ซื้อคอร์ส", "ใบเสร็จและยอดค้างชำระ"],
@@ -52,6 +53,7 @@ const menuIcons = {
   dashboard: icons.dashboard,
   ownerSummary: icons.chart,
   dailyReport: icons.notes,
+  incomeExpense: icons.wallet,
   queue: icons.queue,
   appointments: icons.calendar,
   patients: icons.users,
@@ -93,6 +95,12 @@ const seedState = {
     { id: "B-7781", patient: "ณัฐชา แก้วใส", date: todayIso, item: "ทำแผลและยา", amount: 850, status: "ชำระแล้ว" },
     { id: "B-7782", patient: "ปาริณา ศรีสุข", date: todayIso, item: "ตรวจและเลเซอร์", amount: 2400, status: "รอชำระ" }
   ],
+  financeExpenses: [],
+  staffFees: [],
+  doctorDf: [],
+  needleFees: [],
+  followups: [],
+  agents: [],
   courses: [
     { id: "C-9001", patient: "ปาริณา ศรีสุข", course: "Facial Treatment 10 ครั้ง", service: "ทรีตเมนต์หน้า", total: 10, used: 4, startDate: "2026-05-12", nextDate: "2026-06-08", status: "ใช้งานอยู่" },
     { id: "C-9002", patient: "ณัฐชา แก้วใส", course: "Laser Bright 6 ครั้ง", service: "เลเซอร์ผิว", total: 6, used: 6, startDate: "2026-04-01", nextDate: "", status: "ใช้ครบแล้ว" },
@@ -130,6 +138,19 @@ let outstandingPeriod = "all";
 let salesAnalysisYear = todayIso.slice(0, 4);
 let salesAnalysisMonths = [];
 let dailyReportDate = todayIso;
+let incomeExpenseTab = "income";
+
+const incomeExpenseTabs = [
+  ["income", "รายรับ"],
+  ["financeExpenses", "รายจ่าย"],
+  ["incomeSummary", "สรุปรายรับ-รายจ่าย"],
+  ["monthlySales", "สรุปยอดขายประจำเดือน"],
+  ["staffFees", "ค่ามือ"],
+  ["doctorDf", "DF หมอ"],
+  ["needleFees", "ค่าเข็ม"],
+  ["followups", "ติดตาม"],
+  ["agents", "Agent"]
+];
 
 const navEl = document.querySelector("#nav");
 const contentEl = document.querySelector("#content");
@@ -1020,6 +1041,164 @@ function renderFinanceSummary() {
       <div class="panel-head"><h2>รายการการเงินล่าสุด</h2></div>
       ${table(viewConfig.billing.columns, latest, "billing")}
     </section>`;
+}
+
+function paymentAmountForMethod(bill, method) {
+  const paid = Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
+  return bill.paymentMethod === method ? paid : 0;
+}
+
+function incomeRowsFromBills() {
+  return [...state.billing].sort((a, b) => billDate(b) - billDate(a)).map((bill) => {
+    const paid = Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
+    return {
+      id: bill.id,
+      date: bill.date,
+      patient: bill.patient || "-",
+      item: bill.item || "-",
+      deposit: bill.paymentMethod === "มัดจำ" ? paid : 0,
+      courseUse: /ใช้คอร์ส|ตัดคอร์ส/.test(String(bill.item || "")) ? 1 : "",
+      cash: paymentAmountForMethod(bill, "เงินสด"),
+      transfer: paymentAmountForMethod(bill, "โอนเงิน"),
+      card: paymentAmountForMethod(bill, "บัตรเครดิต"),
+      spay: paymentAmountForMethod(bill, "SPay"),
+      total: paid,
+      note: bill.status === "รอชำระ" ? `ค้าง ${money(billOutstandingAmount(bill))}` : "",
+      newCustomer: state.patients.find((patient) => patient.name === bill.patient)?.tag === "ใหม่" ? "ใหม่" : ""
+    };
+  });
+}
+
+function sumRows(rows, key) {
+  return rows.reduce((sum, row) => sum + Number(row[key] || 0), 0);
+}
+
+function rowsForThisMonth(rows, dateKey = "date") {
+  const monthKey = todayIso.slice(0, 7);
+  return rows.filter((row) => String(row[dateKey] || "").slice(0, 7) === monthKey);
+}
+
+function simpleTable(columns, rows, extraClass = "") {
+  if (!rows.length) return emptyState();
+  const head = columns.map((col) => `<th>${col.label}</th>`).join("");
+  const body = rows.map((row) => `<tr>${columns.map((col) => `<td>${col.render ? col.render(row) : escapeHtml(row[col.key] ?? "-")}</td>`).join("")}</tr>`).join("");
+  return `<div class="table-wrap ${extraClass}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+
+function ledgerTabButton(key, label) {
+  return `<button class="${incomeExpenseTab === key ? "active" : ""}" data-action="incomeExpenseTab" data-tab="${key}">${label}</button>`;
+}
+
+function renderIncomeExpenseManager() {
+  const income = rowsForThisMonth(incomeRowsFromBills());
+  const expenses = rowsForThisMonth(state.financeExpenses || []);
+  const incomeTotal = sumRows(income, "total");
+  const expenseTotal = sumRows(expenses, "amount");
+  return `
+    <section class="ledger-hero">
+      <div>
+        <span class="section-kicker">แทนไฟล์ Excel รายรับ-รายจ่าย</span>
+        <h2>รายรับ-รายจ่าย</h2>
+        <p>รวมงานคีย์หลายชีตไว้ในเว็บ ลดการกรอกซ้ำ และดึงรายรับจากใบเสร็จอัตโนมัติ</p>
+      </div>
+      <div class="ledger-net ${incomeTotal - expenseTotal < 0 ? "danger" : ""}">
+        <span>คงเหลือเดือนนี้</span>
+        <strong>${money(incomeTotal - expenseTotal)}</strong>
+      </div>
+    </section>
+    <section class="grid stats">
+      ${stat("รายรับเดือนนี้", money(incomeTotal), `${income.length} ใบเสร็จ`)}
+      ${stat("รายจ่ายเดือนนี้", money(expenseTotal), `${expenses.length} รายการ`, expenseTotal ? "danger" : "")}
+      ${stat("โอนเดือนนี้", money(sumRows(income, "transfer")), "จากใบเสร็จ")}
+      ${stat("เงินสดเดือนนี้", money(sumRows(income, "cash")), "จากใบเสร็จ")}
+    </section>
+    <section class="panel ledger-panel">
+      <div class="income-expense-tabs">
+        ${incomeExpenseTabs.map(([key, label]) => ledgerTabButton(key, label)).join("")}
+      </div>
+      ${renderIncomeExpenseTab()}
+    </section>`;
+}
+
+function renderIncomeExpenseTab() {
+  if (incomeExpenseTab === "income") return renderIncomeSheet();
+  if (incomeExpenseTab === "incomeSummary") return renderIncomeExpenseSummarySheet();
+  if (incomeExpenseTab === "monthlySales") return renderMonthlySalesSheet();
+  return renderEditableLedgerSheet(incomeExpenseTab);
+}
+
+function renderIncomeSheet() {
+  const rows = incomeRowsFromBills().filter(matchesSearch);
+  const columns = [
+    { label: "วันที่", key: "date" }, { label: "ชื่อ", key: "patient" }, { label: "รายการ", key: "item" },
+    { label: "มัดจำ", key: "deposit", render: (row) => row.deposit ? money(row.deposit) : "-" },
+    { label: "ใช้คอร์ส", key: "courseUse", render: (row) => row.courseUse || "-" },
+    { label: "เงินสด", key: "cash", render: (row) => row.cash ? money(row.cash) : "-" },
+    { label: "โอน", key: "transfer", render: (row) => row.transfer ? money(row.transfer) : "-" },
+    { label: "รูดบัตร", key: "card", render: (row) => row.card ? money(row.card) : "-" },
+    { label: "SPay", key: "spay", render: (row) => row.spay ? money(row.spay) : "-" },
+    { label: "ยอดรวม", key: "total", render: (row) => money(row.total) },
+    { label: "หมายเหตุ", key: "note" }, { label: "ลค.ใหม่", key: "newCustomer" }
+  ];
+  return `
+    <div class="ledger-sheet-head">
+      <div><h3>รายรับ</h3><p>ดึงจากใบเสร็จและการซื้อคอร์สในระบบอัตโนมัติ</p></div>
+      <button data-view="billing" class="secondary">${icons.wallet}ไปหน้าแคชเชียร์</button>
+    </div>
+    ${simpleTable(columns, rows, "income-ledger-table")}`;
+}
+
+function renderEditableLedgerSheet(view) {
+  const setup = viewConfig[view];
+  const rows = (state[view] || []).filter(matchesSearch).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  return `
+    <div class="ledger-sheet-head">
+      <div><h3>${setup.addLabel.replace("เพิ่ม", "")}</h3><p>คีย์ข้อมูลแทนชีต Excel เดิม แก้ไขและลบได้</p></div>
+      <button data-action="add" data-view="${view}">${icons.plus}${setup.addLabel}</button>
+    </div>
+    ${table(setup.columns, rows, view)}`;
+}
+
+function renderIncomeExpenseSummarySheet() {
+  const income = rowsForThisMonth(incomeRowsFromBills());
+  const expenses = rowsForThisMonth(state.financeExpenses || []);
+  const rows = [{
+    date: todayIso.slice(0, 7),
+    cash: sumRows(income, "cash"),
+    transfer: sumRows(income, "transfer"),
+    card: sumRows(income, "card"),
+    spay: sumRows(income, "spay"),
+    expenseCash: sumRows(expenses, "cash"),
+    expenseTransfer: sumRows(expenses, "transfer"),
+    counter: sumRows(income, "cash") - sumRows(expenses, "cash"),
+    net: sumRows(income, "total") - sumRows(expenses, "amount")
+  }];
+  const columns = [
+    { label: "เดือน", key: "date" }, { label: "สด", key: "cash", render: (row) => money(row.cash) }, { label: "โอน", key: "transfer", render: (row) => money(row.transfer) },
+    { label: "รูดSCB", key: "card", render: (row) => money(row.card) }, { label: "Spay", key: "spay", render: (row) => money(row.spay) },
+    { label: "รายจ่ายเงินสด", key: "expenseCash", render: (row) => money(row.expenseCash) }, { label: "รายจ่ายโอน", key: "expenseTransfer", render: (row) => money(row.expenseTransfer) },
+    { label: "ยอดเงินเคาน์เตอร์", key: "counter", render: (row) => money(row.counter) }, { label: "คงเหลือสุทธิ", key: "net", render: (row) => `<strong class="${row.net < 0 ? "outstanding-due" : "money"}">${money(row.net)}</strong>` }
+  ];
+  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดรายรับ - รายจ่าย</h3><p>สรุปอัตโนมัติจากรายรับใบเสร็จและรายจ่ายที่คีย์ไว้</p></div></div>${simpleTable(columns, rows)}`;
+}
+
+function renderMonthlySalesSheet() {
+  const income = rowsForThisMonth(incomeRowsFromBills());
+  const dfTotal = rowsForThisMonth(state.doctorDf || []).reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100, 0);
+  const agentTotal = rowsForThisMonth(state.agents || []).reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100, 0);
+  const total = sumRows(income, "total");
+  const rows = [{
+    date: todayIso.slice(0, 7), online: 0, admin: 0, staff: total, total, dfBase: total, df: dfTotal, agent: agentTotal,
+    afterDf: total - dfTotal - agentTotal, newCustomer: income.filter((row) => row.newCustomer).length, oldCustomer: income.filter((row) => !row.newCustomer).length
+  }];
+  const columns = [
+    { label: "เดือน", key: "date" }, { label: "Patricia", key: "online", render: (row) => money(row.online) }, { label: "แอดมิน", key: "admin", render: (row) => money(row.admin) },
+    { label: "อีฟ+แนน", key: "staff", render: (row) => money(row.staff) }, { label: "รวมยอดสุทธิ", key: "total", render: (row) => money(row.total) },
+    { label: "ยอดที่คิด DF", key: "dfBase", render: (row) => money(row.dfBase) }, { label: "ค่า DF", key: "df", render: (row) => money(row.df) },
+    { label: "ค่าคอม Agent", key: "agent", render: (row) => money(row.agent) }, { label: "ยอดหลังหัก DF", key: "afterDf", render: (row) => money(row.afterDf) },
+    { label: "New", key: "newCustomer" }, { label: "Old", key: "oldCustomer" }
+  ];
+  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>คำนวณจากรายรับ, DF หมอ และ Agent</p></div></div>${simpleTable(columns, rows)}`;
 }
 
 function salesAnalysisYears() {
@@ -1995,6 +2174,59 @@ const viewConfig = {
       { label: "สถานะ", key: "status", render: (row) => badge(row.status) }
     ]
   },
+  financeExpenses: {
+    addLabel: "เพิ่มรายจ่าย",
+    filters: [],
+    fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["item", "รายการ"], ["amount", "ยอด", "number"], ["cash", "งคต.", "number"], ["transfer", "โอน", "number"], ["note", "หมายเหตุ"]],
+    columns: [
+      { label: "วันที่", key: "date" }, { label: "รายการ", key: "item" }, { label: "ยอด", key: "amount", render: (row) => money(row.amount || 0) },
+      { label: "งคต.", key: "cash", render: (row) => money(row.cash || 0) }, { label: "โอน", key: "transfer", render: (row) => money(row.transfer || 0) }, { label: "หมายเหตุ", key: "note" }
+    ]
+  },
+  staffFees: {
+    addLabel: "เพิ่มค่ามือ",
+    filters: [],
+    fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["staff", "พนักงาน"], ["service", "บริการ"], ["count", "จำนวนเคส/ครั้ง", "number"], ["rate", "เรทต่อครั้ง", "number"], ["note", "หมายเหตุ"]],
+    columns: [
+      { label: "วันที่", key: "date" }, { label: "พนักงาน", key: "staff" }, { label: "บริการ", key: "service" },
+      { label: "จำนวน", key: "count" }, { label: "เรท", key: "rate", render: (row) => money(row.rate || 0) }, { label: "รวม", key: "total", render: (row) => money(Number(row.count || 0) * Number(row.rate || 0)) }, { label: "หมายเหตุ", key: "note" }
+    ]
+  },
+  doctorDf: {
+    addLabel: "เพิ่ม DF หมอ",
+    filters: [],
+    fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["patient", "ชื่อผู้ป่วย"], ["service", "ยา/บริการ"], ["saleAmount", "ราคาขายหลังหักส่วนลด", "number"], ["dfPercent", "DF %", "number"], ["note", "หมายเหตุ"]],
+    columns: [
+      { label: "วันที่", key: "date" }, { label: "ชื่อผู้ป่วย", key: "patient" }, { label: "ยา/บริการ", key: "service" },
+      { label: "ราคาขาย", key: "saleAmount", render: (row) => money(row.saleAmount || 0) }, { label: "DF", key: "dfPercent", render: (row) => `${Number(row.dfPercent || 10)}%` }, { label: "ค่ามือ/DF", key: "total", render: (row) => money(Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100) }
+    ]
+  },
+  needleFees: {
+    addLabel: "เพิ่มค่าเข็ม",
+    filters: [],
+    fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["patient", "ชื่อผู้ป่วย"], ["saleAmount", "ราคาขาย", "number"], ["clinicShare", "หักเข้าร้าน", "number"], ["note", "หมายเหตุ"]],
+    columns: [
+      { label: "วันที่", key: "date" }, { label: "ชื่อผู้ป่วย", key: "patient" }, { label: "ราคาขาย", key: "saleAmount", render: (row) => money(row.saleAmount || 0) },
+      { label: "หักเข้าร้าน", key: "clinicShare", render: (row) => money(row.clinicShare || 0) }, { label: "ยอดรับหลังหัก", key: "net", render: (row) => money(Number(row.saleAmount || 0) - Number(row.clinicShare || 0)) }, { label: "หมายเหตุ", key: "note" }
+    ]
+  },
+  followups: {
+    addLabel: "เพิ่มติดตาม",
+    filters: [],
+    fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["patient", "ชื่อ"], ["service", "รายการ"], ["note", "หมายเหตุ"], ["followupDate", "นัดติดตามผล", "date"]],
+    columns: [
+      { label: "วันที่", key: "date" }, { label: "ชื่อ", key: "patient" }, { label: "รายการ", key: "service" }, { label: "หมายเหตุ", key: "note" }, { label: "นัดติดตามผล", key: "followupDate" }
+    ]
+  },
+  agents: {
+    addLabel: "เพิ่ม Agent",
+    filters: [],
+    fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["agent", "Agent"], ["patient", "ชื่อผู้ป่วย"], ["service", "ยา/บริการ"], ["saleAmount", "ราคาขายหลังหักส่วนลด", "number"], ["commissionPercent", "หัก %", "number"], ["bankAccount", "บัญชีโอน"], ["note", "หมายเหตุ"]],
+    columns: [
+      { label: "วันที่", key: "date" }, { label: "Agent", key: "agent" }, { label: "ชื่อผู้ป่วย", key: "patient" }, { label: "ยา/บริการ", key: "service" },
+      { label: "ราคาขาย", key: "saleAmount", render: (row) => money(row.saleAmount || 0) }, { label: "ค่าคอม", key: "commission", render: (row) => money(Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100) }, { label: "บัญชีโอน", key: "bankAccount" }
+    ]
+  },
   courses: {
     addLabel: "เพิ่มคอร์สลูกค้า",
     filters: ["ใช้งานอยู่", "ใกล้หมด", "ใช้ครบแล้ว", "พักคอร์ส"],
@@ -2051,7 +2283,8 @@ const viewConfig = {
 function openForm(view, id) {
   const setup = viewConfig[view];
   const existing = id ? state[view].find((item) => item.id === id) : null;
-  const generatedId = view === "serviceCatalog" ? `SV-${String(Date.now()).slice(-6)}` : view === "courses" ? `C-${String(Date.now()).slice(-6)}` : "";
+  const generatedPrefixes = { serviceCatalog: "SV", courses: "C", financeExpenses: "EX", staffFees: "HF", doctorDf: "DF", needleFees: "ND", followups: "FU", agents: "AG" };
+  const generatedId = generatedPrefixes[view] ? `${generatedPrefixes[view]}-${String(Date.now()).slice(-6)}` : "";
   setModalSize("default");
   const patientOptions = state.patients.map((patient) => (
     `<option value="${escapeHtml(patient.name)}" label="${escapeHtml(`${patient.id || "-"} · ${patient.phone || "-"}`)}"></option>`
@@ -2077,6 +2310,7 @@ function openForm(view, id) {
       : !existing && view === "courses" && key === "used" ? 0
       : !existing && view === "courses" && key === "total" ? 1
       : !existing && view === "courses" && key === "status" ? "ใช้งานอยู่"
+      : !existing && (key === "dfPercent" || key === "commissionPercent") ? 10
       : key === "date" || key === "lastVisit" || key === "startDate" ? todayIso
       : "";
     const value = existing?.[key] ?? defaultValue;
@@ -3073,6 +3307,7 @@ function render() {
   if (currentView === "dashboard") contentEl.innerHTML = renderDashboard();
   else if (currentView === "ownerSummary") contentEl.innerHTML = renderTodayOwnerSummary();
   else if (currentView === "dailyReport") contentEl.innerHTML = renderDailyReport();
+  else if (currentView === "incomeExpense") contentEl.innerHTML = renderIncomeExpenseManager();
   else if (currentView === "patients") contentEl.innerHTML = renderPatientsCenter();
   else if (currentView === "financeSummary") contentEl.innerHTML = renderFinanceSummary();
   else if (currentView === "outstanding") contentEl.innerHTML = renderOutstandingPayments();
@@ -3113,6 +3348,10 @@ contentEl.addEventListener("click", (event) => {
   }
   if (button.dataset.action === "outstandingPeriod") {
     outstandingPeriod = button.dataset.period || "all";
+    render();
+  }
+  if (button.dataset.action === "incomeExpenseTab") {
+    incomeExpenseTab = button.dataset.tab || "income";
     render();
   }
   if (button.dataset.action === "salesAllMonths") {
