@@ -127,6 +127,12 @@ const seedState = {
   ]
 };
 
+const excelImportBatches = [
+  { id: "excel-2026-08", data: window.excelImport202608 || null }
+];
+
+const ledgerDataKeys = ["financeIncome", "financeExpenses", "staffFees", "doctorDf", "needleFees", "followups", "agents"];
+
 let state = loadState();
 let currentView = "dashboard";
 let searchTerm = "";
@@ -166,12 +172,6 @@ const loginScreen = document.querySelector("#loginScreen");
 const loginForm = document.querySelector("#loginForm");
 const loginError = document.querySelector("#loginError");
 const logoutButton = document.querySelector("#logoutButton");
-
-const excelImportBatches = [
-  { id: "excel-2026-08", data: window.excelImport202608 || null }
-];
-
-const ledgerDataKeys = ["financeIncome", "financeExpenses", "staffFees", "doctorDf", "needleFees", "followups", "agents"];
 
 function setModalSize(size = "default") {
   const form = modal.querySelector("form");
