@@ -1517,7 +1517,6 @@ function renderPatientDetail(patient) {
       </div>
       <div class="detail-actions">
         <button data-action="buyCourse" data-patient-id="${patient.id}">${icons.course}ซื้อคอร์ส</button>
-        <button class="secondary icon-button" data-action="edit" data-view="patients" data-id="${patient.id}" aria-label="แก้ไข">${icons.edit}</button>
       </div>
     </section>
     <section class="patient-detail-grid">
@@ -1526,6 +1525,7 @@ function renderPatientDetail(patient) {
         <h3>${escapeHtml(patient.name)}</h3>
         ${patient.nickname ? `<span class="profile-nickname">ชื่อเล่น: ${escapeHtml(patient.nickname)}</span>` : ""}
         <strong>${escapeHtml(patient.phone || "-")}</strong>
+        <button class="profile-edit-button" data-action="edit" data-view="patients" data-id="${patient.id}">${icons.edit}<span>แก้ไขข้อมูลลูกค้า</span></button>
         <div class="profile-section">
           <span>ข้อมูลส่วนตัว</span>
           <p>อายุ ${escapeHtml(patient.age || "-")} ปี</p>
