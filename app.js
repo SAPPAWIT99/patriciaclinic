@@ -3574,13 +3574,8 @@ loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const form = new FormData(loginForm);
   const username = String(form.get("username") || "").trim();
-  const password = String(form.get("password") || "");
-  if (validUsers.some((user) => username === user.username && password === user.password)) {
-    localStorage.setItem(authKey, "active");
-    loginError.textContent = "";
-    loginForm.reset();
-    setAuthView();
-    render();
+  const password = String(form.get("password") || "").trim();
+  if (loginWithCredentials(username, password)) {
     return;
   }
   loginError.textContent = "ยูสเซอร์หรือพาสเวิร์ดไม่ถูกต้อง";
@@ -3591,6 +3586,29 @@ logoutButton.addEventListener("click", () => {
   setAuthView();
 });
 
+function loginWithCredentials(username, password) {
+  if (!validUsers.some((user) => username === user.username && password === user.password)) return false;
+  localStorage.setItem(authKey, "active");
+  loginError.textContent = "";
+  loginForm.reset();
+  setAuthView();
+  render();
+  return true;
+}
+
+function applyLoginParams() {
+  const params = new URLSearchParams(window.location.search);
+  const username = String(params.get("username") || "").trim();
+  const password = String(params.get("password") || "").trim();
+  if (!username && !password) return;
+  if (username) document.querySelector("#username").value = username;
+  if (password) document.querySelector("#password").value = password;
+  if (loginWithCredentials(username, password)) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+}
+
 setAuthView();
+applyLoginParams();
 render();
 hydrateStateFromSupabase();
