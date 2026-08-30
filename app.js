@@ -369,9 +369,9 @@ function emptyState() {
 
 function table(columns, rows, view) {
   if (!rows.length) return emptyState();
-  const head = columns.map((col) => `<th>${col.label}</th>`).join("") + "<th></th>";
+  const head = columns.map((col) => `<th class="${col.calculated ? "calculated-col" : ""}">${col.label}${col.calculated ? "<span>สูตร</span>" : ""}</th>`).join("") + "<th></th>";
   const body = rows.map((row) => {
-    const cells = columns.map((col) => `<td>${col.render ? col.render(row) : escapeHtml(row[col.key])}</td>`).join("");
+    const cells = columns.map((col) => `<td class="${col.calculated ? "calculated-col" : ""}">${col.render ? col.render(row) : escapeHtml(row[col.key])}</td>`).join("");
     const deductButton = view === "courses"
       ? `<button class="deduct-button" title="ตัดคอร์ส" aria-label="ตัดคอร์ส" data-action="deduct" data-view="${view}" data-id="${row.id}" ${courseRemaining(row) <= 0 ? "disabled" : ""}>${icons.deduct}<span>ตัด</span></button>`
       : "";
@@ -1131,8 +1131,8 @@ function ledgerMonthPicker() {
 
 function simpleTable(columns, rows, extraClass = "") {
   if (!rows.length) return emptyState();
-  const head = columns.map((col) => `<th>${col.label}</th>`).join("");
-  const body = rows.map((row) => `<tr>${columns.map((col) => `<td>${col.render ? col.render(row) : escapeHtml(row[col.key] ?? "-")}</td>`).join("")}</tr>`).join("");
+  const head = columns.map((col) => `<th class="${col.calculated ? "calculated-col" : ""}">${col.label}${col.calculated ? "<span>สูตร</span>" : ""}</th>`).join("");
+  const body = rows.map((row) => `<tr>${columns.map((col) => `<td class="${col.calculated ? "calculated-col" : ""}">${col.render ? col.render(row) : escapeHtml(row[col.key] ?? "-")}</td>`).join("")}</tr>`).join("");
   return `<div class="table-wrap ${extraClass}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
@@ -1239,7 +1239,7 @@ function renderIncomeExpenseSummarySheet() {
     { label: "เดือน", key: "date" }, { label: "สด", key: "cash", render: (row) => money(row.cash) }, { label: "โอน", key: "transfer", render: (row) => money(row.transfer) },
     { label: "รูดSCB", key: "card", render: (row) => money(row.card) }, { label: "Spay", key: "spay", render: (row) => money(row.spay) },
     { label: "รายจ่ายเงินสด", key: "expenseCash", render: (row) => money(row.expenseCash) }, { label: "รายจ่ายโอน", key: "expenseTransfer", render: (row) => money(row.expenseTransfer) },
-    { label: "ยอดเงินเคาน์เตอร์", key: "counter", render: (row) => money(row.counter) }, { label: "คงเหลือสุทธิ", key: "net", render: (row) => `<strong class="${row.net < 0 ? "outstanding-due" : "money"}">${money(row.net)}</strong>` }
+    { label: "ยอดเงินเคาน์เตอร์", key: "counter", calculated: true, render: (row) => money(row.counter) }, { label: "คงเหลือสุทธิ", key: "net", calculated: true, render: (row) => `<strong class="${row.net < 0 ? "outstanding-due" : "money"}">${money(row.net)}</strong>` }
   ];
   return `<div class="ledger-sheet-head"><div><h3>สรุปยอดรายรับ - รายจ่าย</h3><p>สรุปอัตโนมัติจากรายรับใบเสร็จและรายจ่ายที่คีย์ไว้</p></div></div>${simpleTable(columns, rows)}`;
 }
@@ -1255,9 +1255,9 @@ function renderMonthlySalesSheet() {
   }];
   const columns = [
     { label: "เดือน", key: "date" }, { label: "Patricia", key: "online", render: (row) => money(row.online) }, { label: "แอดมิน", key: "admin", render: (row) => money(row.admin) },
-    { label: "อีฟ+แนน", key: "staff", render: (row) => money(row.staff) }, { label: "รวมยอดสุทธิ", key: "total", render: (row) => money(row.total) },
-    { label: "ยอดที่คิด DF", key: "dfBase", render: (row) => money(row.dfBase) }, { label: "ค่า DF", key: "df", render: (row) => money(row.df) },
-    { label: "ค่าคอม Agent", key: "agent", render: (row) => money(row.agent) }, { label: "ยอดหลังหัก DF", key: "afterDf", render: (row) => money(row.afterDf) },
+    { label: "อีฟ+แนน", key: "staff", render: (row) => money(row.staff) }, { label: "รวมยอดสุทธิ", key: "total", calculated: true, render: (row) => money(row.total) },
+    { label: "ยอดที่คิด DF", key: "dfBase", calculated: true, render: (row) => money(row.dfBase) }, { label: "ค่า DF", key: "df", calculated: true, render: (row) => money(row.df) },
+    { label: "ค่าคอม Agent", key: "agent", calculated: true, render: (row) => money(row.agent) }, { label: "ยอดหลังหัก DF", key: "afterDf", calculated: true, render: (row) => money(row.afterDf) },
     { label: "New", key: "newCustomer" }, { label: "Old", key: "oldCustomer" }
   ];
   return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>คำนวณจากรายรับ, DF หมอ และ Agent</p></div></div>${simpleTable(columns, rows)}`;
@@ -2262,7 +2262,7 @@ const viewConfig = {
     fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["staff", "พนักงาน"], ["service", "บริการ"], ["count", "จำนวนเคส/ครั้ง", "number"], ["rate", "เรทต่อครั้ง", "number"], ["note", "หมายเหตุ"]],
     columns: [
       { label: "วันที่", key: "date" }, { label: "พนักงาน", key: "staff" }, { label: "บริการ", key: "service" },
-      { label: "จำนวน", key: "count" }, { label: "เรท", key: "rate", render: (row) => money(row.rate || 0) }, { label: "รวม", key: "total", render: (row) => money(Number(row.count || 0) * Number(row.rate || 0)) }, { label: "หมายเหตุ", key: "note" }
+      { label: "จำนวน", key: "count" }, { label: "เรท", key: "rate", render: (row) => money(row.rate || 0) }, { label: "รวม", key: "total", calculated: true, render: (row) => money(Number(row.count || 0) * Number(row.rate || 0)) }, { label: "หมายเหตุ", key: "note" }
     ]
   },
   doctorDf: {
@@ -2271,7 +2271,7 @@ const viewConfig = {
     fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["patient", "ชื่อผู้ป่วย"], ["service", "ยา/บริการ"], ["saleAmount", "ราคาขายหลังหักส่วนลด", "number"], ["dfPercent", "DF %", "number"], ["note", "หมายเหตุ"]],
     columns: [
       { label: "วันที่", key: "date" }, { label: "ชื่อผู้ป่วย", key: "patient" }, { label: "ยา/บริการ", key: "service" },
-      { label: "ราคาขาย", key: "saleAmount", render: (row) => money(row.saleAmount || 0) }, { label: "DF", key: "dfPercent", render: (row) => `${Number(row.dfPercent || 10)}%` }, { label: "ค่ามือ/DF", key: "total", render: (row) => money(Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100) }
+      { label: "ราคาขาย", key: "saleAmount", render: (row) => money(row.saleAmount || 0) }, { label: "DF", key: "dfPercent", render: (row) => `${Number(row.dfPercent || 10)}%` }, { label: "ค่ามือ/DF", key: "total", calculated: true, render: (row) => money(Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100) }
     ]
   },
   needleFees: {
@@ -2280,7 +2280,7 @@ const viewConfig = {
     fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["patient", "ชื่อผู้ป่วย"], ["saleAmount", "ราคาขาย", "number"], ["clinicShare", "หักเข้าร้าน", "number"], ["note", "หมายเหตุ"]],
     columns: [
       { label: "วันที่", key: "date" }, { label: "ชื่อผู้ป่วย", key: "patient" }, { label: "ราคาขาย", key: "saleAmount", render: (row) => money(row.saleAmount || 0) },
-      { label: "หักเข้าร้าน", key: "clinicShare", render: (row) => money(row.clinicShare || 0) }, { label: "ยอดรับหลังหัก", key: "net", render: (row) => money(Number(row.saleAmount || 0) - Number(row.clinicShare || 0)) }, { label: "หมายเหตุ", key: "note" }
+      { label: "หักเข้าร้าน", key: "clinicShare", render: (row) => money(row.clinicShare || 0) }, { label: "ยอดรับหลังหัก", key: "net", calculated: true, render: (row) => money(Number(row.saleAmount || 0) - Number(row.clinicShare || 0)) }, { label: "หมายเหตุ", key: "note" }
     ]
   },
   followups: {
@@ -2297,7 +2297,7 @@ const viewConfig = {
     fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["agent", "Agent"], ["patient", "ชื่อผู้ป่วย"], ["service", "ยา/บริการ"], ["saleAmount", "ราคาขายหลังหักส่วนลด", "number"], ["commissionPercent", "หัก %", "number"], ["bankAccount", "บัญชีโอน"], ["note", "หมายเหตุ"]],
     columns: [
       { label: "วันที่", key: "date" }, { label: "Agent", key: "agent" }, { label: "ชื่อผู้ป่วย", key: "patient" }, { label: "ยา/บริการ", key: "service" },
-      { label: "ราคาขาย", key: "saleAmount", render: (row) => money(row.saleAmount || 0) }, { label: "ค่าคอม", key: "commission", render: (row) => money(Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100) }, { label: "บัญชีโอน", key: "bankAccount" }
+      { label: "ราคาขาย", key: "saleAmount", render: (row) => money(row.saleAmount || 0) }, { label: "ค่าคอม", key: "commission", calculated: true, render: (row) => money(Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100) }, { label: "บัญชีโอน", key: "bankAccount" }
     ]
   },
   courses: {
