@@ -1698,6 +1698,7 @@ function receiptItemsFromBill(bill) {
 function openReceiptFromBill(id) {
   const bill = state.billing.find((item) => item.id === id);
   if (!bill) return;
+  modal.querySelector("form")?.classList.remove("compact-modal");
   const patient = patientByName(bill.patient);
   modalTitle.textContent = "ใบเสร็จรับเงิน";
   modalFields.onclick = null;
@@ -2043,6 +2044,7 @@ function openForm(view, id) {
   const setup = viewConfig[view];
   const existing = id ? state[view].find((item) => item.id === id) : null;
   const generatedId = view === "serviceCatalog" ? `SV-${String(Date.now()).slice(-6)}` : view === "courses" ? `C-${String(Date.now()).slice(-6)}` : "";
+  modal.querySelector("form")?.classList.remove("compact-modal");
   const patientOptions = state.patients.map((patient) => (
     `<option value="${escapeHtml(patient.name)}" label="${escapeHtml(`${patient.id || "-"} · ${patient.phone || "-"}`)}"></option>`
   )).join("");
@@ -2130,6 +2132,7 @@ function openForm(view, id) {
 function openDeductCourse(id) {
   const course = state.courses.find((item) => item.id === id);
   if (!course) return;
+  modal.querySelector("form")?.classList.remove("compact-modal");
   modalFields.onclick = null;
   modalFields.oninput = null;
   modalSave.textContent = "บันทึก";
@@ -2190,6 +2193,7 @@ function openDeductCourse(id) {
 function openRepairCourse(patientId, courseId = "") {
   const patient = state.patients.find((item) => item.id === patientId);
   if (!patient) return;
+  modal.querySelector("form")?.classList.add("compact-modal");
   const existing = courseId ? state.courses.find((item) => item.id === courseId) : null;
   const courseOptions = catalogRows().map((item) => (
     `<option value="${escapeHtml(item.name)}" label="${escapeHtml(`${item.category || "-"} · ${money(item.price)} · ${Number(item.sessions || 1)} ครั้ง`)}"></option>`
@@ -2296,6 +2300,7 @@ function openRepairCourse(patientId, courseId = "") {
 function openBuyCourse(patientId) {
   const patient = state.patients.find((item) => item.id === patientId);
   if (!patient) return;
+  modal.querySelector("form")?.classList.remove("compact-modal");
   let catalog = catalogRows();
   const nextId = `C-${String(Date.now()).slice(-6)}`;
   let paymentStep = false;
@@ -2389,7 +2394,9 @@ function openBuyCourse(patientId) {
       const item = catalog.find((entry) => entry.id === id);
       const qtyInput = [...form.querySelectorAll(".qty-input")].find((input) => input.name === `qty-${id}`);
       const qty = Math.max(1, Number(qtyInput?.value || 1));
-      return { item, qty, total: Number(item?.price || 0) * qty };
+      const priceInput = form.querySelector(`[name="customPrice-${CSS.escape(id)}"]`);
+      const unitPrice = Math.max(0, Number(priceInput ? priceInput.value || 0 : item?.price || 0));
+      return { item, qty, unitPrice, total: unitPrice * qty };
     }).filter((row) => row.item);
     const subtotal = rows.reduce((sum, row) => sum + row.total, 0);
     const discount = Math.min(Math.max(0, Number(form.discount?.value || 0)), subtotal);
@@ -2399,7 +2406,18 @@ function openBuyCourse(patientId) {
     const paidAmount = Math.max(0, Number(form.paidAmount?.value || 0));
     const change = Math.max(paidAmount - net, 0);
     const due = Math.max(net - paidAmount, 0);
-    modal.querySelector("#selectedCourseItems").innerHTML = rows.length ? rows.map((row) => `<div><span>${escapeHtml(row.item.name)} x${row.qty}</span><strong>${money(row.total)}</strong></div>`).join("") : "<p class='muted'>ยังไม่ได้เลือกรายการ</p>";
+    const currentPrices = new Set(rows.map((row) => `customPrice-${row.item.id}`));
+    [...form.querySelectorAll('input[name^="customPrice-"]')].forEach((input) => {
+      if (!currentPrices.has(input.name)) input.remove();
+    });
+    modal.querySelector("#selectedCourseItems").innerHTML = rows.length ? rows.map((row) => {
+      const priceName = `customPrice-${escapeHtml(row.item.id)}`;
+      return `<div class="selected-price-row">
+        <span>${escapeHtml(row.item.name)} x${row.qty}</span>
+        <label><small>ราคา/หน่วย</small><input name="${priceName}" type="number" min="0" value="${row.unitPrice}" data-action="customBuyPrice" aria-label="ราคาพิเศษ ${escapeHtml(row.item.name)}"></label>
+        <strong>${money(row.total)}</strong>
+      </div>`;
+    }).join("") : "<p class='muted'>ยังไม่ได้เลือกรายการ</p>";
     modal.querySelector("#buySubtotal").textContent = money(subtotal);
     modal.querySelector("#buyNetTotal").textContent = money(net);
     modal.querySelector("#paymentNetTotal").textContent = money(net);
@@ -2492,7 +2510,18 @@ function openBuyCourse(patientId) {
       if (result) result.textContent = query ? `พบ ${visibleCount} รายการ` : "";
       return;
     }
+    const customPriceName = event.target.dataset.action === "customBuyPrice" ? event.target.name : "";
+    const customPriceSelection = customPriceName ? event.target.selectionStart : null;
     updateBuySummary();
+    if (customPriceName) {
+      setTimeout(() => {
+        const input = modalFields.querySelector(`[name="${CSS.escape(customPriceName)}"]`);
+        if (!input) return;
+        input.focus();
+        const position = Math.min(Number(customPriceSelection ?? input.value.length), input.value.length);
+        input.setSelectionRange(position, position);
+      }, 0);
+    }
   };
   updateBuySummary();
   modalSave.onclick = (event) => {
@@ -2510,14 +2539,16 @@ function openBuyCourse(patientId) {
     const purchased = selectedIds.map((id, index) => {
       const selected = catalog.find((item) => item.id === id);
       const qty = Math.max(1, Number(form.get(`qty-${id}`) || 1));
-      return selected ? { selected, qty, index } : null;
+      const priceKey = `customPrice-${id}`;
+      const unitPrice = Math.max(0, Number(form.has(priceKey) ? form.get(priceKey) || 0 : selected?.price || 0));
+      return selected ? { selected: { ...selected, price: unitPrice }, original: selected, qty, index } : null;
     }).filter(Boolean);
     const subtotal = purchased.reduce((sum, row) => sum + Number(row.selected.price || 0) * row.qty, 0);
     const discount = Math.min(Math.max(0, Number(form.get("discount") || 0)), subtotal);
     const net = subtotal - discount;
     const paidAmount = Math.min(Math.max(0, Number(form.get("paidAmount") || 0)), net);
     const billId = `B-${String(Date.now()).slice(-6)}`;
-    state.courses = [...purchased.map(({ selected, qty, index }) => ({
+    state.courses = [...purchased.map(({ selected, original, qty, index }) => ({
       id: `${nextId}-${index + 1}`,
       patient: patient.name,
       course: selected.name,
@@ -2528,7 +2559,7 @@ function openBuyCourse(patientId) {
       nextDate: String(form.get("nextDate") || ""),
       status: "ใช้งานอยู่",
       price: Number(selected.price || 0) * qty,
-      catalogId: selected.id,
+      catalogId: original?.id || selected.id,
       billId
     })), ...state.courses];
     const bill = {
@@ -2542,7 +2573,15 @@ function openBuyCourse(patientId) {
       paidAmount,
       paymentMethod: String(form.get("paymentMethod") || "เงินสด"),
       seller: String(form.get("seller") || ""),
-      status: paidAmount >= net ? "ชำระแล้ว" : "รอชำระ"
+      status: paidAmount >= net ? "ชำระแล้ว" : "รอชำระ",
+      items: purchased.map(({ selected, original, qty }) => ({
+        id: original?.id || selected.id,
+        name: selected.name,
+        category: selected.category,
+        quantity: qty,
+        price: Number(selected.price || 0),
+        sessions: Number(selected.sessions || 1)
+      }))
     };
     state.billing = [bill, ...state.billing];
     patientDetailTab = "courses";
@@ -2569,6 +2608,7 @@ function openBuyCourse(patientId) {
 function openPayOutstandingCourse(courseId) {
   const course = state.courses.find((item) => item.id === courseId);
   if (!course) return;
+  modal.querySelector("form")?.classList.remove("compact-modal");
   const bills = pendingBillsForCourse(course);
   const totalDue = bills.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
   if (!bills.length || totalDue <= 0) {
@@ -2691,6 +2731,7 @@ function openPayOutstandingCourse(courseId) {
 function openPayOutstandingBill(billId) {
   const bill = state.billing.find((item) => item.id === billId);
   if (!bill) return;
+  modal.querySelector("form")?.classList.remove("compact-modal");
   const totalDue = billOutstandingAmount(bill);
   if (totalDue <= 0) {
     alert("ใบเสร็จนี้ไม่มีรายการค้างชำระ");
@@ -2850,6 +2891,7 @@ function renderReceipt(patient, purchased, bill) {
         <span>ผู้ขาย: ${escapeHtml(bill.seller || "-")}</span>
         <span>สถานะ: ${escapeHtml(bill.status)}</span>
       </div>
+      <div class="receipt-deposit-note">งดคืนเงินมัดจำทุกกรณี</div>
       <div class="receipt-signatures">
         <div>
           <span></span>

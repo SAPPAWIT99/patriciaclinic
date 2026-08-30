@@ -1156,6 +1156,33 @@ h1 {
   background: #fff;
 }
 
+.selected-items .selected-price-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px auto;
+  align-items: end;
+}
+
+.selected-price-row label {
+  display: grid;
+  gap: 3px;
+}
+
+.selected-price-row small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.selected-price-row input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 8px;
+  text-align: right;
+  font-weight: 900;
+}
+
 .selected-items span {
   min-width: 0;
   color: var(--ink);
@@ -1416,6 +1443,13 @@ h1 {
   font-weight: 800;
 }
 
+.receipt-deposit-note {
+  margin-top: 10px;
+  color: #111;
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .receipt-signatures {
   margin-top: 42px;
   display: grid;
@@ -1531,6 +1565,11 @@ h1 {
   margin-top: 10px;
   padding-top: 8px;
   font-size: 10px;
+}
+
+.receipt-mobile-export .receipt-deposit-note {
+  margin-top: 6px;
+  font-size: 9px;
 }
 
 .receipt-mobile-export .receipt-signatures {
@@ -1987,6 +2026,11 @@ h1 {
     margin-top: 3mm;
     padding-top: 2mm;
     font-size: 7.3pt;
+  }
+
+  .receipt-deposit-note {
+    margin-top: 2mm;
+    font-size: 7pt;
   }
 
   .receipt-signatures {
@@ -3406,12 +3450,24 @@ dialog {
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.22);
 }
 
+dialog:has(.compact-modal) {
+  width: min(720px, calc(100vw - 28px));
+}
+
 dialog::backdrop {
   background: rgba(15, 23, 42, 0.45);
 }
 
 .modal {
   padding: 18px;
+}
+
+.modal.compact-modal {
+  padding: 18px 20px;
+}
+
+.modal.compact-modal .form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .modal-head {
@@ -5035,6 +5091,10 @@ td {
     max-width: calc(100vw - 8px);
   }
 
+  .modal.compact-modal .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   dialog menu {
     position: sticky;
     bottom: 0;
@@ -6481,6 +6541,11 @@ body {
 }
 
 @media (max-width: 760px) {
+  .selected-items .selected-price-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
   .outstanding-hero {
     align-items: stretch;
     flex-direction: column;
