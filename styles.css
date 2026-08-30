@@ -3464,12 +3464,16 @@ dialog {
   border: 0;
   border-radius: 8px;
   padding: 0;
-  width: min(1120px, calc(100vw - 28px));
+  width: min(680px, calc(100vw - 28px));
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.22);
 }
 
 dialog:has(.compact-modal) {
-  width: min(720px, calc(100vw - 28px));
+  width: min(620px, calc(100vw - 28px));
+}
+
+dialog:has(.wide-modal) {
+  width: min(1120px, calc(100vw - 28px));
 }
 
 dialog::backdrop {
@@ -3482,6 +3486,10 @@ dialog::backdrop {
 
 .modal.compact-modal {
   padding: 18px 20px;
+}
+
+.modal.wide-modal {
+  padding: 18px;
 }
 
 .modal.compact-modal .form-grid {

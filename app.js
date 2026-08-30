@@ -142,6 +142,14 @@ const loginForm = document.querySelector("#loginForm");
 const loginError = document.querySelector("#loginError");
 const logoutButton = document.querySelector("#logoutButton");
 
+function setModalSize(size = "default") {
+  const form = modal.querySelector("form");
+  if (!form) return;
+  form.classList.remove("compact-modal", "wide-modal");
+  if (size === "compact") form.classList.add("compact-modal");
+  if (size === "wide") form.classList.add("wide-modal");
+}
+
 function normalizeState(data = {}) {
   const next = { ...structuredClone(seedState), ...data };
   const deletedIds = new Set([
@@ -1698,7 +1706,7 @@ function receiptItemsFromBill(bill) {
 function openReceiptFromBill(id) {
   const bill = state.billing.find((item) => item.id === id);
   if (!bill) return;
-  modal.querySelector("form")?.classList.remove("compact-modal");
+  setModalSize("wide");
   const patient = patientByName(bill.patient);
   modalTitle.textContent = "ใบเสร็จรับเงิน";
   modalFields.onclick = null;
@@ -2044,7 +2052,7 @@ function openForm(view, id) {
   const setup = viewConfig[view];
   const existing = id ? state[view].find((item) => item.id === id) : null;
   const generatedId = view === "serviceCatalog" ? `SV-${String(Date.now()).slice(-6)}` : view === "courses" ? `C-${String(Date.now()).slice(-6)}` : "";
-  modal.querySelector("form")?.classList.remove("compact-modal");
+  setModalSize("default");
   const patientOptions = state.patients.map((patient) => (
     `<option value="${escapeHtml(patient.name)}" label="${escapeHtml(`${patient.id || "-"} · ${patient.phone || "-"}`)}"></option>`
   )).join("");
@@ -2132,7 +2140,7 @@ function openForm(view, id) {
 function openDeductCourse(id) {
   const course = state.courses.find((item) => item.id === id);
   if (!course) return;
-  modal.querySelector("form")?.classList.remove("compact-modal");
+  setModalSize("default");
   modalFields.onclick = null;
   modalFields.oninput = null;
   modalSave.textContent = "บันทึก";
@@ -2193,7 +2201,7 @@ function openDeductCourse(id) {
 function openRepairCourse(patientId, courseId = "") {
   const patient = state.patients.find((item) => item.id === patientId);
   if (!patient) return;
-  modal.querySelector("form")?.classList.add("compact-modal");
+  setModalSize("compact");
   const existing = courseId ? state.courses.find((item) => item.id === courseId) : null;
   const courseOptions = catalogRows().map((item) => (
     `<option value="${escapeHtml(item.name)}" label="${escapeHtml(`${item.category || "-"} · ${money(item.price)} · ${Number(item.sessions || 1)} ครั้ง`)}"></option>`
@@ -2300,7 +2308,7 @@ function openRepairCourse(patientId, courseId = "") {
 function openBuyCourse(patientId) {
   const patient = state.patients.find((item) => item.id === patientId);
   if (!patient) return;
-  modal.querySelector("form")?.classList.remove("compact-modal");
+  setModalSize("wide");
   let catalog = catalogRows();
   const nextId = `C-${String(Date.now()).slice(-6)}`;
   let paymentStep = false;
@@ -2608,7 +2616,7 @@ function openBuyCourse(patientId) {
 function openPayOutstandingCourse(courseId) {
   const course = state.courses.find((item) => item.id === courseId);
   if (!course) return;
-  modal.querySelector("form")?.classList.remove("compact-modal");
+  setModalSize("default");
   const bills = pendingBillsForCourse(course);
   const totalDue = bills.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
   if (!bills.length || totalDue <= 0) {
@@ -2731,7 +2739,7 @@ function openPayOutstandingCourse(courseId) {
 function openPayOutstandingBill(billId) {
   const bill = state.billing.find((item) => item.id === billId);
   if (!bill) return;
-  modal.querySelector("form")?.classList.remove("compact-modal");
+  setModalSize("default");
   const totalDue = billOutstandingAmount(bill);
   if (totalDue <= 0) {
     alert("ใบเสร็จนี้ไม่มีรายการค้างชำระ");
