@@ -127,10 +127,6 @@ const seedState = {
   ]
 };
 
-const excelImportBatches = [
-  { id: "excel-2026-08", data: window.excelImport202608 || null }
-];
-
 const ledgerDataKeys = ["financeIncome", "financeExpenses", "staffFees", "doctorDf", "needleFees", "followups", "agents"];
 
 let state = loadState();
@@ -184,18 +180,11 @@ function setModalSize(size = "default") {
 function normalizeState(data = {}) {
   const next = { ...structuredClone(seedState), ...data };
   ledgerDataKeys.forEach((key) => {
-    next[key] = Array.isArray(next[key]) ? next[key] : [];
+    next[key] = Array.isArray(next[key]) ? next[key].filter((row) => row.source !== "excel-2026-08") : [];
   });
-  next.importedExcelBatches = Array.isArray(next.importedExcelBatches) ? next.importedExcelBatches : [];
-  excelImportBatches.forEach((batch) => {
-    if (!batch.data || next.importedExcelBatches.includes(batch.id)) return;
-    ledgerDataKeys.forEach((key) => {
-      const incoming = Array.isArray(batch.data[key]) ? batch.data[key] : [];
-      const existingIds = new Set(next[key].map((row) => row.id));
-      next[key] = [...incoming.filter((row) => !existingIds.has(row.id)), ...next[key]];
-    });
-    next.importedExcelBatches = [...next.importedExcelBatches, batch.id];
-  });
+  next.importedExcelBatches = Array.isArray(next.importedExcelBatches)
+    ? next.importedExcelBatches.filter((batch) => batch !== "excel-2026-08")
+    : [];
   const deletedIds = new Set([
     ...seedState.deletedServiceCatalogIds,
     ...(Array.isArray(next.deletedServiceCatalogIds) ? next.deletedServiceCatalogIds : [])
@@ -1096,7 +1085,7 @@ function incomeRowsFromBills() {
 function manualIncomeRows() {
   return (state.financeIncome || []).map((row) => ({
     ...row,
-    sourceLabel: row.source === "excel-2026-08" ? "Excel เดิม" : "คีย์เอง"
+    sourceLabel: "คีย์เอง"
   }));
 }
 
@@ -1156,7 +1145,6 @@ function renderIncomeExpenseManager() {
   const expenses = rowsForLedgerMonth(state.financeExpenses || []);
   const incomeTotal = sumRows(income, "total");
   const expenseTotal = sumRows(expenses, "amount");
-  const importedCount = ledgerDataKeys.reduce((sum, key) => sum + (state[key] || []).filter((row) => row.source === "excel-2026-08").length, 0);
   return `
     <section class="ledger-hero">
       <div>
@@ -1172,8 +1160,8 @@ function renderIncomeExpenseManager() {
     <section class="ledger-toolbar">
       ${ledgerMonthPicker()}
       <div class="ledger-import-note">
-        <strong>นำเข้าข้อมูลเดิมแล้ว ${importedCount.toLocaleString("th-TH")} รายการ</strong>
-        <span>หลังจากนี้ให้ทำงานบนเว็บอย่างเดียว ไม่ต้องใช้ Excel เดือนใหม่</span>
+        <strong>พร้อมเริ่มคีย์ข้อมูลจริงของเดือนใหม่</strong>
+        <span>ข้อมูล Excel เดิมถูกเคลียร์ออกจากหน้านี้แล้ว รายการและราคาที่ต้องคีย์ให้กรอกบนเว็บเท่านั้น</span>
       </div>
     </section>
     <section class="grid stats">
