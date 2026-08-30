@@ -666,6 +666,14 @@ h1 {
   margin-bottom: 4px;
 }
 
+.profile-nickname {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 .profile-section,
 .profile-alert {
   margin-top: 16px;
@@ -719,6 +727,41 @@ h1 {
   background: #fff;
   color: #2563eb;
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.12);
+}
+
+.course-repair-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 16px;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(232, 246, 255, 0.88));
+}
+
+.course-repair-head h3 {
+  margin: 0 0 4px;
+  color: #0b2142;
+}
+
+.course-repair-head p {
+  margin: 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.course-repair-stats {
+  margin-bottom: 14px;
+}
+
+.course-repair-table table {
+  min-width: 920px;
+}
+
+.repair-empty {
+  padding: 10px 0;
 }
 
 .service-hero {
@@ -2939,6 +2982,14 @@ tr:last-child td {
   gap: 6px;
 }
 
+.history-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .receipt-view-button {
   min-height: 38px;
   padding: 0 12px;
@@ -4934,6 +4985,16 @@ td {
     gap: 8px;
   }
 
+  .course-repair-head {
+    align-items: stretch;
+    flex-direction: column;
+    padding: 14px;
+  }
+
+  .course-repair-head button {
+    width: 100%;
+  }
+
   .course-detail-item,
   .transaction-item,
   .course-balance-card {
@@ -4941,7 +5002,8 @@ td {
   }
 
   .course-item-actions,
-  .table-actions {
+  .table-actions,
+  .history-actions {
     justify-content: flex-start;
   }
 

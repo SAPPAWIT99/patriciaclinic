@@ -1442,7 +1442,7 @@ function renderOutstandingPaymentsTable(rows) {
 function renderPatientsCenter() {
   const query = searchTerm.toLowerCase();
   const rows = state.patients.filter((patient) => {
-    const haystack = `${patient.id} ${patient.name} ${patient.phone} ${patient.tag}`.toLowerCase();
+    const haystack = `${patient.id} ${patient.name} ${patient.nickname || ""} ${patient.phone} ${patient.tag}`.toLowerCase();
     return !query || haystack.includes(query);
   });
   const selected = selectedPatientId ? state.patients.find((patient) => patient.id === selectedPatientId) : null;
@@ -1466,7 +1466,7 @@ function renderPatientsCenter() {
       </div>
       <label class="patient-search">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35M10.8 18a7.2 7.2 0 1 1 0-14.4 7.2 7.2 0 0 1 0 14.4Z"/></svg>
-        <input data-action="patientSearch" value="${escapeHtml(searchTerm)}" placeholder="ค้นหาชื่อ, เบอร์โทร, HN...">
+        <input data-action="patientSearch" value="${escapeHtml(searchTerm)}" placeholder="ค้นหาชื่อ, ชื่อเล่น, เบอร์โทร, HN...">
       </label>
       ${searchTerm ? `<p class="muted result-count">พบ ${rows.length} รายการ สำหรับ "${escapeHtml(searchTerm)}"</p>` : ""}
       ${renderPatientsTable(rows)}
@@ -1481,7 +1481,7 @@ function renderPatientsTable(rows) {
       <td>
         <div class="name-cell">
           <span class="avatar">${initials(patient.name)}</span>
-          <div><strong>${escapeHtml(patient.name)}</strong><div class="muted">${escapeHtml(patient.tag || "-")}</div></div>
+          <div><strong>${escapeHtml(patient.name)}</strong><div class="muted">${patient.nickname ? `ชื่อเล่น: ${escapeHtml(patient.nickname)} · ` : ""}${escapeHtml(patient.tag || "-")}</div></div>
         </div>
       </td>
       <td>${escapeHtml(patient.phone || "-")}</td>
@@ -1504,6 +1504,7 @@ function renderPatientDetail(patient) {
   const activeTab = {
     records: renderPatientRecords(records),
     courses: renderPatientCourses(courses, patient.name),
+    courseRepair: renderPatientCourseRepair(patient, courses),
     history: renderPatientHistory(patient, records, courses),
     appointments: renderPatientAppointments(appointments)
   }[patientDetailTab] || "";
@@ -1512,7 +1513,7 @@ function renderPatientDetail(patient) {
       <button class="secondary icon-button" data-action="backPatients" aria-label="กลับ">${icons.back}</button>
       <div>
         <h2>${escapeHtml(patient.name)}</h2>
-        <span>${escapeHtml(patient.id)}</span>
+        <span>${patient.nickname ? `ชื่อเล่น: ${escapeHtml(patient.nickname)} · ` : ""}${escapeHtml(patient.id)}</span>
       </div>
       <div class="detail-actions">
         <button data-action="buyCourse" data-patient-id="${patient.id}">${icons.course}ซื้อคอร์ส</button>
@@ -1523,6 +1524,7 @@ function renderPatientDetail(patient) {
       <aside class="patient-profile panel">
         <span class="avatar big">${initials(patient.name)}</span>
         <h3>${escapeHtml(patient.name)}</h3>
+        ${patient.nickname ? `<span class="profile-nickname">ชื่อเล่น: ${escapeHtml(patient.nickname)}</span>` : ""}
         <strong>${escapeHtml(patient.phone || "-")}</strong>
         <div class="profile-section">
           <span>ข้อมูลส่วนตัว</span>
@@ -1542,6 +1544,7 @@ function renderPatientDetail(patient) {
         <div class="patient-tabs">
           ${patientTabButton("records", "ประวัติการรักษา", icons.notes)}
           ${patientTabButton("courses", "คอร์สของฉัน", icons.course)}
+          ${patientTabButton("courseRepair", "ปรับปรุงคอร์ส", icons.edit)}
           ${patientTabButton("history", "ประวัติการซื้อ", icons.wallet)}
           ${patientTabButton("appointments", "การนัดหมาย", icons.calendar)}
         </div>
@@ -1601,6 +1604,45 @@ function renderPatientCourses(courses, patientName) {
   }).join("")}</div>`;
 }
 
+function renderPatientCourseRepair(patient, courses) {
+  const totalRemaining = courses.reduce((sum, course) => sum + courseRemaining(course), 0);
+  const activeCount = courses.filter((course) => courseStatus(course) !== "ใช้ครบแล้ว").length;
+  const body = courses.length ? courses.map((course) => `
+    <tr>
+      <td><strong>${escapeHtml(course.course)}</strong><div class="muted">${escapeHtml(course.service || "-")}</div></td>
+      <td>${Number(course.total || 0).toLocaleString("th-TH")}</td>
+      <td>${Number(course.used || 0).toLocaleString("th-TH")}</td>
+      <td><strong class="money">${courseRemaining(course).toLocaleString("th-TH")}</strong></td>
+      <td>${escapeHtml(course.startDate || "-")}</td>
+      <td>${escapeHtml(course.nextDate || "-")}</td>
+      <td>${badge(courseStatus(course))}</td>
+      <td>
+        <div class="table-actions">
+          <button class="action-button edit-action" title="แก้ไขคอร์ส" aria-label="แก้ไขคอร์ส" data-action="repairCourse" data-patient-id="${escapeHtml(patient.id)}" data-id="${escapeHtml(course.id)}">${icons.edit}<span>แก้</span></button>
+          <button class="action-button danger delete-action" title="ลบคอร์ส" aria-label="ลบคอร์ส" data-action="delete" data-view="courses" data-id="${escapeHtml(course.id)}">${icons.trash}<span>ลบ</span></button>
+        </div>
+      </td>
+    </tr>`).join("") : "";
+  return `
+    <section class="course-repair-head">
+      <div>
+        <h3>ปรับปรุงข้อมูลคอร์ส</h3>
+        <p>ใช้สำหรับเพิ่มคอร์สที่ดึงจากเว็บเก่ามาไม่ครบ หรือแก้จำนวนครั้งของคอร์สเดิม</p>
+      </div>
+      <button data-action="repairCourse" data-patient-id="${escapeHtml(patient.id)}">${icons.plus}เพิ่มคอร์สที่ตกหล่น</button>
+    </section>
+    <section class="grid stats course-repair-stats">
+      ${stat("คอร์สทั้งหมด", courses.length.toLocaleString("th-TH"), `${activeCount.toLocaleString("th-TH")} คอร์สยังใช้งานอยู่`)}
+      ${stat("ครั้งคงเหลือรวม", totalRemaining.toLocaleString("th-TH"), "รวมทุกคอร์สของลูกค้า")}
+    </section>
+    ${courses.length ? `<div class="table-wrap course-repair-table">
+      <table>
+        <thead><tr><th>คอร์ส</th><th>ทั้งหมด</th><th>ใช้แล้ว</th><th>คงเหลือ</th><th>วันเริ่ม</th><th>นัดถัดไป</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </div>` : `<div class="repair-empty">${emptyState()}</div>`}`;
+}
+
 function renderPatientHistory(patient, records, courses) {
   const bills = state.billing.filter((item) => item.patient === patient.name);
   const rows = [
@@ -1615,7 +1657,10 @@ function renderPatientHistory(patient, records, courses) {
       <span>${escapeHtml(row.text)}</span>
       ${badge(row.type)}
     </div>
-    ${row.billId ? `<button class="action-button view-action receipt-view-button" title="ดูใบเสร็จ" aria-label="ดูใบเสร็จ" data-action="viewReceipt" data-id="${escapeHtml(row.billId)}">${icons.notes}<span>ดูใบเสร็จ</span></button>` : ""}
+    ${row.billId ? `<div class="history-actions">
+      <button class="action-button view-action receipt-view-button" title="ดูใบเสร็จ" aria-label="ดูใบเสร็จ" data-action="viewReceipt" data-id="${escapeHtml(row.billId)}">${icons.notes}<span>ดูใบเสร็จ</span></button>
+      <button class="action-button danger delete-action" title="ยกเลิกการซื้อ" aria-label="ยกเลิกการซื้อ" data-action="deletePurchaseBill" data-id="${escapeHtml(row.billId)}">${icons.trash}<span>ลบ</span></button>
+    </div>` : ""}
   </article>`).join("")}</div>`;
 }
 
@@ -1876,11 +1921,11 @@ const viewConfig = {
     addLabel: "เพิ่มคนไข้",
     filters: ["ใหม่", "ติดตามผล", "เรื้อรัง"],
     fields: [
-      ["id", "เลข HN"], ["name", "ชื่อ-นามสกุล"], ["phone", "เบอร์โทร"], ["age", "อายุ", "number"],
+      ["id", "เลข HN"], ["name", "ชื่อ-นามสกุล"], ["nickname", "ชื่อเล่น"], ["phone", "เบอร์โทร"], ["age", "อายุ", "number"],
       ["allergy", "แพ้ยา"], ["lastVisit", "เข้ารับบริการล่าสุด", "date"], ["tag", "ประเภท"]
     ],
     columns: [
-      { label: "คนไข้", key: "name", render: (row) => `<div class="name-cell"><span class="avatar">${initials(row.name)}</span><div><strong>${escapeHtml(row.name)}</strong><div class="muted">${row.id}</div></div></div>` },
+      { label: "คนไข้", key: "name", render: (row) => `<div class="name-cell"><span class="avatar">${initials(row.name)}</span><div><strong>${escapeHtml(row.name)}</strong><div class="muted">${row.nickname ? `ชื่อเล่น: ${escapeHtml(row.nickname)} · ` : ""}${row.id}</div></div></div>` },
       { label: "โทรศัพท์", key: "phone" }, { label: "อายุ", key: "age" }, { label: "แพ้ยา", key: "allergy" },
       { label: "ล่าสุด", key: "lastVisit" }, { label: "ประเภท", key: "tag", render: (row) => badge(row.tag) }
     ]
@@ -2142,6 +2187,112 @@ function openDeductCourse(id) {
   modal.showModal();
 }
 
+function openRepairCourse(patientId, courseId = "") {
+  const patient = state.patients.find((item) => item.id === patientId);
+  if (!patient) return;
+  const existing = courseId ? state.courses.find((item) => item.id === courseId) : null;
+  const courseOptions = catalogRows().map((item) => (
+    `<option value="${escapeHtml(item.name)}" label="${escapeHtml(`${item.category || "-"} · ${money(item.price)} · ${Number(item.sessions || 1)} ครั้ง`)}"></option>`
+  )).join("");
+  modalFields.onclick = null;
+  modalFields.oninput = null;
+  modalTitle.textContent = existing ? "แก้ไขคอร์สลูกค้า" : "เพิ่มคอร์สที่ตกหล่น";
+  modalSave.textContent = existing ? "บันทึกการแก้ไข" : "เพิ่มคอร์ส";
+  modalFields.innerHTML = `
+    <div class="field full">
+      <label>ลูกค้า</label>
+      <input value="${escapeHtml(patient.name)}" disabled>
+    </div>
+    <div class="field full">
+      <label>ชื่อคอร์ส</label>
+      <input name="course" value="${escapeHtml(existing?.course || "")}" list="repairCourseOptions" autocomplete="off" required>
+    </div>
+    <div class="field">
+      <label>หมวด/บริการ</label>
+      <input name="service" value="${escapeHtml(existing?.service || "")}" required>
+    </div>
+    <div class="field">
+      <label>จำนวนครั้งทั้งหมด</label>
+      <input name="total" type="number" min="0" value="${Number(existing?.total ?? 1)}" required>
+    </div>
+    <div class="field">
+      <label>ใช้แล้ว</label>
+      <input name="used" type="number" min="0" value="${Number(existing?.used || 0)}" required>
+    </div>
+    <div class="field">
+      <label>ราคา/มูลค่า</label>
+      <input name="price" type="number" min="0" value="${Number(existing?.price || 0)}">
+    </div>
+    <div class="field">
+      <label>วันเริ่มคอร์ส</label>
+      <input name="startDate" type="date" value="${escapeHtml(existing?.startDate || todayIso)}" required>
+    </div>
+    <div class="field">
+      <label>นัดครั้งถัดไป</label>
+      <input name="nextDate" type="date" value="${escapeHtml(existing?.nextDate || "")}">
+    </div>
+    <div class="field full">
+      <label>สถานะ</label>
+      <input name="status" value="${escapeHtml(existing?.status || "ใช้งานอยู่")}" list="repairCourseStatusOptions" autocomplete="off" required>
+    </div>
+    <datalist id="repairCourseOptions">${courseOptions}</datalist>
+    <datalist id="repairCourseStatusOptions">
+      <option value="ใช้งานอยู่"></option>
+      <option value="ใกล้หมด"></option>
+      <option value="พักคอร์ส"></option>
+      <option value="ใช้ครบแล้ว"></option>
+    </datalist>
+  `;
+  modalFields.oninput = (event) => {
+    const formElement = modal.querySelector("form");
+    if (event.target.name === "course") {
+      const picked = catalogRows().find((item) => item.name === event.target.value);
+      if (!picked) return;
+      if (!formElement.service.value) formElement.service.value = picked.category || picked.type || "";
+      if (!existing || Number(formElement.total.value || 0) <= 1) formElement.total.value = Number(picked.sessions || 1);
+      if (!formElement.price.value || Number(formElement.price.value || 0) <= 0) formElement.price.value = Number(picked.price || 0);
+    }
+    if (event.target.name === "used" || event.target.name === "total") {
+      const totalInput = formElement.total;
+      const usedInput = formElement.used;
+      const total = Math.max(0, Number(totalInput.value || 0));
+      const used = Math.max(0, Math.min(Number(usedInput.value || 0), total));
+      usedInput.value = String(used);
+    }
+  };
+  modalSave.onclick = (event) => {
+    event.preventDefault();
+    const form = new FormData(modal.querySelector("form"));
+    const total = Math.max(0, Number(form.get("total") || 0));
+    const used = Math.max(0, Math.min(Number(form.get("used") || 0), total));
+    const item = {
+      id: existing?.id || `C-ADJ-${String(Date.now()).slice(-6)}`,
+      patient: patient.name,
+      course: String(form.get("course") || "").trim(),
+      service: String(form.get("service") || "").trim() || "อื่นๆ",
+      total,
+      used,
+      startDate: String(form.get("startDate") || todayIso),
+      nextDate: String(form.get("nextDate") || ""),
+      status: used >= total && total > 0 ? "ใช้ครบแล้ว" : String(form.get("status") || "ใช้งานอยู่"),
+      price: Math.max(0, Number(form.get("price") || 0)),
+      catalogId: existing?.catalogId || ""
+    };
+    if (!item.course) {
+      alert("กรุณากรอกชื่อคอร์ส");
+      return;
+    }
+    state.courses = existing
+      ? state.courses.map((row) => row.id === existing.id ? { ...row, ...item } : row)
+      : [item, ...state.courses];
+    patientDetailTab = "courseRepair";
+    saveState();
+    modal.close();
+    render();
+  };
+  modal.showModal();
+}
+
 function openBuyCourse(patientId) {
   const patient = state.patients.find((item) => item.id === patientId);
   if (!patient) return;
@@ -2365,6 +2516,7 @@ function openBuyCourse(patientId) {
     const discount = Math.min(Math.max(0, Number(form.get("discount") || 0)), subtotal);
     const net = subtotal - discount;
     const paidAmount = Math.min(Math.max(0, Number(form.get("paidAmount") || 0)), net);
+    const billId = `B-${String(Date.now()).slice(-6)}`;
     state.courses = [...purchased.map(({ selected, qty, index }) => ({
       id: `${nextId}-${index + 1}`,
       patient: patient.name,
@@ -2376,10 +2528,11 @@ function openBuyCourse(patientId) {
       nextDate: String(form.get("nextDate") || ""),
       status: "ใช้งานอยู่",
       price: Number(selected.price || 0) * qty,
-      catalogId: selected.id
+      catalogId: selected.id,
+      billId
     })), ...state.courses];
     const bill = {
-      id: `B-${String(Date.now()).slice(-6)}`,
+      id: billId,
       patient: patient.name,
       date: String(form.get("startDate") || todayIso),
       item: purchased.map(({ selected, qty }) => `${selected.name} x${qty}`).join(", "),
@@ -2836,6 +2989,34 @@ async function removeItem(view, id) {
   render();
 }
 
+function courseBelongsToBill(course, bill) {
+  if (course.billId && course.billId === bill.id) return true;
+  const samePatient = course.patient === bill.patient;
+  const sameDate = course.startDate === bill.date;
+  const itemText = String(bill.item || "").toLowerCase();
+  const courseName = String(course.course || "").toLowerCase();
+  return samePatient && sameDate && courseName && itemText.includes(courseName);
+}
+
+async function deletePurchaseBill(billId) {
+  const bill = state.billing.find((item) => item.id === billId);
+  if (!bill) return;
+  const linkedCourses = state.courses.filter((course) => courseBelongsToBill(course, bill));
+  const message = linkedCourses.length
+    ? `ต้องการยกเลิกการซื้อใบเสร็จ ${bill.id} ใช่ไหม\nระบบจะลบใบเสร็จออกจากรายงานประจำวัน และลบคอร์สที่ผูกไว้ ${linkedCourses.length} รายการ`
+    : `ต้องการยกเลิกการซื้อใบเสร็จ ${bill.id} ใช่ไหม\nระบบจะลบใบเสร็จออกจากรายงานประจำวันด้วย`;
+  if (!confirm(message)) return;
+  state.billing = state.billing.filter((item) => item.id !== bill.id);
+  state.courses = state.courses.filter((course) => !courseBelongsToBill(course, bill));
+  try {
+    await saveState({ immediate: true });
+  } catch (error) {
+    console.warn(error.message);
+    alert("บันทึกการยกเลิกขึ้น Supabase ไม่สำเร็จ กรุณาตรวจอินเทอร์เน็ตแล้วลองอีกครั้ง");
+  }
+  render();
+}
+
 function render() {
   setHeader();
   renderNav();
@@ -2913,6 +3094,7 @@ contentEl.addEventListener("click", (event) => {
     render();
   }
   if (button.dataset.action === "buyCourse") openBuyCourse(button.dataset.patientId);
+  if (button.dataset.action === "repairCourse") openRepairCourse(button.dataset.patientId, button.dataset.id || "");
   if (button.dataset.action === "viewCoursePatient") {
     const patient = patientByName(button.dataset.patient || "");
     selectedPatientId = patient.id;
@@ -2923,6 +3105,7 @@ contentEl.addEventListener("click", (event) => {
   if (button.dataset.action === "payOutstandingCourse") openPayOutstandingCourse(button.dataset.id);
   if (button.dataset.action === "payOutstandingBill") openPayOutstandingBill(button.dataset.id);
   if (button.dataset.action === "viewReceipt") openReceiptFromBill(button.dataset.id);
+  if (button.dataset.action === "deletePurchaseBill") deletePurchaseBill(button.dataset.id);
   if (button.dataset.action === "deduct") openDeductCourse(button.dataset.id);
   if (button.dataset.action === "edit") openForm(button.dataset.view, button.dataset.id);
   if (button.dataset.action === "delete") removeItem(button.dataset.view, button.dataset.id);
