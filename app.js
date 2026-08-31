@@ -919,7 +919,7 @@ function renderDashboard() {
         <p>ภาพรวมคลินิกและระบบขายในหน้าจอเดียว</p>
       </div>
       <div class="dashboard-marquee" aria-label="ประกาศอัปเดตข้อมูลคอร์ส">
-        <span>${icons.users} ให้อีฟช่วยอัพเดทข้อมูลคอร์สของลูกค้าให้เป็นปัจจุบัน เพื่อปรับปรุงข้อมูลให้ถูก</span>
+        <span>${icons.users} ให้อีฟช่วยอัพเดทข้อมูลคอร์สของลูกค้าให้เป็นปัจจุบัน เพื่อปรับปรุงข้อมูลให้ถูกต้อง</span>
       </div>
       <div class="dashboard-live-actions">
         <span>${thaiDateLabel(todayIso, { weekday: "short" })}</span>
