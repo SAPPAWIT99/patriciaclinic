@@ -98,6 +98,7 @@ const seedState = {
   ],
   financeIncome: [],
   financeExpenses: [],
+  salesDailyInputs: [],
   staffFees: [],
   doctorDf: [],
   needleFees: [],
@@ -127,7 +128,7 @@ const seedState = {
   ]
 };
 
-const ledgerDataKeys = ["financeIncome", "financeExpenses", "staffFees", "doctorDf", "needleFees", "followups", "agents"];
+const ledgerDataKeys = ["financeIncome", "financeExpenses", "salesDailyInputs", "staffFees", "doctorDf", "needleFees", "followups", "agents"];
 
 let state = loadState();
 let currentView = "dashboard";
@@ -150,6 +151,7 @@ const incomeExpenseTabs = [
   ["financeIncome", "คีย์รายรับ"],
   ["financeExpenses", "รายจ่าย"],
   ["incomeSummary", "สรุปรายรับ-รายจ่าย"],
+  ["salesDailyInputs", "คีย์ยอดขายรายวัน"],
   ["monthlySales", "สรุปยอดขายประจำเดือน"],
   ["staffFees", "ค่ามือ"],
   ["doctorDf", "DF หมอ"],
@@ -1216,9 +1218,12 @@ function renderIncomeSheet() {
 function renderEditableLedgerSheet(view) {
   const setup = viewConfig[view];
   const rows = rowsForLedgerMonth(state[view] || []).filter(matchesSearch).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const helpText = view === "salesDailyInputs"
+    ? "คีย์ยอดขายแยกช่อง Patricia, แอดมิน, อีฟ+แนน และจำนวนลูกค้า New/Old ส่วนยอดรวมและยอดสะสมระบบจะคำนวณเอง"
+    : "คีย์ข้อมูลแทนชีต Excel เดิม แก้ไขและลบได้";
   return `
     <div class="ledger-sheet-head">
-      <div><h3>${setup.addLabel.replace("เพิ่ม", "")}</h3><p>คีย์ข้อมูลแทนชีต Excel เดิม แก้ไขและลบได้</p></div>
+      <div><h3>${setup.addLabel.replace("เพิ่ม", "")}</h3><p>${helpText}</p></div>
       <button data-action="add" data-view="${view}">${icons.plus}${setup.addLabel}</button>
     </div>
     ${table(setup.columns, rows, view)}`;
@@ -1248,7 +1253,7 @@ function renderIncomeExpenseSummarySheet() {
 }
 
 function renderMonthlySalesSheet() {
-  const income = rowsForLedgerMonth(allIncomeRows());
+  const salesInputs = rowsForLedgerMonth(state.salesDailyInputs || []);
   const doctorDf = rowsForLedgerMonth(state.doctorDf || []);
   const agents = rowsForLedgerMonth(state.agents || []);
   const [year, month] = incomeExpenseMonth.split("-").map(Number);
@@ -1256,19 +1261,22 @@ function renderMonthlySalesSheet() {
   let cumulativeAfterDf = 0;
   const rows = Array.from({ length: dayCount }, (_, index) => {
     const date = `${incomeExpenseMonth}-${String(index + 1).padStart(2, "0")}`;
-    const dayIncome = income.filter((row) => row.date === date);
+    const daySalesRows = salesInputs.filter((row) => row.date === date);
     const dayDfRows = doctorDf.filter((row) => row.date === date);
     const dayAgentRows = agents.filter((row) => row.date === date);
-    const total = sumRows(dayIncome, "total");
+    const online = sumRows(daySalesRows, "online");
+    const admin = sumRows(daySalesRows, "admin");
+    const staff = sumRows(daySalesRows, "staff");
+    const total = online + admin + staff;
     const df = dayDfRows.reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100, 0);
     const agent = dayAgentRows.reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100, 0);
     const afterDf = total - df - agent;
     cumulativeAfterDf += afterDf;
     return {
       date,
-      online: 0,
-      admin: 0,
-      staff: total,
+      online,
+      admin,
+      staff,
       total,
       dfBase: dayDfRows.reduce((sum, row) => sum + Number(row.saleAmount || 0), 0),
       df,
@@ -1276,8 +1284,8 @@ function renderMonthlySalesSheet() {
       nonDf: Math.max(total - dayDfRows.reduce((sum, row) => sum + Number(row.saleAmount || 0), 0), 0),
       afterDf,
       cumulativeAfterDf,
-      newCustomer: dayIncome.filter((row) => row.newCustomer).length,
-      oldCustomer: dayIncome.filter((row) => !row.newCustomer && Number(row.total || 0) > 0).length
+      newCustomer: sumRows(daySalesRows, "newCustomer"),
+      oldCustomer: sumRows(daySalesRows, "oldCustomer")
     };
   });
   const totalRow = {
@@ -1304,7 +1312,7 @@ function renderMonthlySalesSheet() {
     { label: "ยอดหลังหัก DF", key: "afterDf", calculated: true, render: (row) => money(row.afterDf) }, { label: "ยอดสะสมหลังหัก DF", key: "cumulativeAfterDf", calculated: true, render: (row) => money(row.cumulativeAfterDf) },
     { label: "New", key: "newCustomer" }, { label: "Old", key: "oldCustomer" }
   ];
-  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>แสดงรายวันของเดือนที่เลือก คำนวณจากรายรับ, DF หมอ และ Agent พร้อมยอดสะสม</p></div></div>${simpleTable(columns, [...rows, totalRow], "monthly-sales-ledger-table")}`;
+  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>แสดงรายวันของเดือนที่เลือก โดยดึงยอดขายจากแท็บคีย์ยอดขายรายวัน แล้วคำนวณ DF, Agent และยอดสะสมอัตโนมัติ</p></div></div>${simpleTable(columns, [...rows, totalRow], "monthly-sales-ledger-table")}`;
 }
 
 function salesAnalysisYears() {
@@ -2300,6 +2308,21 @@ const viewConfig = {
       { label: "งคต.", key: "cash", render: (row) => money(row.cash || 0) }, { label: "โอน", key: "transfer", render: (row) => money(row.transfer || 0) }, { label: "หมายเหตุ", key: "note" }
     ]
   },
+  salesDailyInputs: {
+    addLabel: "เพิ่มยอดขายรายวัน",
+    filters: [],
+    fields: [["id", "รหัส"], ["date", "วันที่", "date"], ["online", "ยอดออนไลน์ Patricia", "number"], ["admin", "ยอดแอดมิน", "number"], ["staff", "ยอดอีฟ+แนน", "number"], ["newCustomer", "ลูกค้าใหม่ New", "number"], ["oldCustomer", "ลูกค้าเก่า Old", "number"], ["note", "หมายเหตุ"]],
+    columns: [
+      { label: "วันที่", key: "date" },
+      { label: "Patricia", key: "online", render: (row) => money(row.online || 0) },
+      { label: "แอดมิน", key: "admin", render: (row) => money(row.admin || 0) },
+      { label: "อีฟ+แนน", key: "staff", render: (row) => money(row.staff || 0) },
+      { label: "รวมยอดสุทธิ", key: "total", calculated: true, render: (row) => money(Number(row.online || 0) + Number(row.admin || 0) + Number(row.staff || 0)) },
+      { label: "New", key: "newCustomer" },
+      { label: "Old", key: "oldCustomer" },
+      { label: "หมายเหตุ", key: "note" }
+    ]
+  },
   staffFees: {
     addLabel: "เพิ่มค่ามือ",
     filters: [],
@@ -2400,7 +2423,7 @@ const viewConfig = {
 function openForm(view, id) {
   const setup = viewConfig[view];
   const existing = id ? state[view].find((item) => item.id === id) : null;
-  const generatedPrefixes = { serviceCatalog: "SV", courses: "C", financeIncome: "FI", financeExpenses: "EX", staffFees: "HF", doctorDf: "DF", needleFees: "ND", followups: "FU", agents: "AG" };
+  const generatedPrefixes = { serviceCatalog: "SV", courses: "C", financeIncome: "FI", financeExpenses: "EX", salesDailyInputs: "SD", staffFees: "HF", doctorDf: "DF", needleFees: "ND", followups: "FU", agents: "AG" };
   const generatedId = generatedPrefixes[view] ? `${generatedPrefixes[view]}-${String(Date.now()).slice(-6)}` : "";
   const optionalFields = new Set(["note", "newCustomer", "oldCustomer", "deposit", "bl", "up", "courseUse", "cash", "transfer", "card", "spay", "total", "amount", "followupDate", "bankAccount"]);
   setModalSize("default");
