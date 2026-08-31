@@ -31,41 +31,40 @@ const icons = {
 };
 
 const menu = [
-  ["dashboard", "Dashboard", "ภาพรวมระบบคลินิก"],
   ["ownerSummary", "ภาพรวมวันนี้", "บริการ คอร์ส และยอดเงินประจำวัน"],
-  ["dailyReport", "รายงานประจำวัน", "ปิดยอดและพิมพ์เก็บแฟ้ม"],
-  ["incomeExpense", "รายรับ-รายจ่าย", "แทนไฟล์ Excel หลายชีตและสรุปยอด"],
-  ["patients", "ลูกค้า (CRM)", "ศูนย์กลางข้อมูล ประวัติรักษา และคอร์ส"],
   ["appointments", "นัดหมาย", "ตารางนัดและการติดตาม"],
+  ["patients", "ลูกค้า (CRM)", "ศูนย์กลางข้อมูล ประวัติรักษา และคอร์ส"],
   ["billing", "แคชเชียร์ / ซื้อคอร์ส", "ใบเสร็จและยอดค้างชำระ"],
   ["outstanding", "รายการค้างชำระ", "รวมใบเสร็จที่ยังชำระไม่ครบ"],
   ["courses", "จัดการตัดคอร์ส", "ติดตามคอร์สลูกค้าและจำนวนครั้งคงเหลือ"],
   ["services", "จัดการบริการ/คอร์ส", "รายการสินค้า บริการ และแพ็กเกจคอร์ส"],
+  ["incomeExpense", "รายรับ-รายจ่าย", "แทนไฟล์ Excel หลายชีตและสรุปยอด"],
   ["salesAnalysis", "วิเคราะห์การขาย", "บริการขายดีและยอดขายตามเดือน"],
   ["records", "เวชระเบียน", "ข้อมูลประวัติคนไข้และสุขภาพ"],
-  ["financeSummary", "รายงาน & ใบเสร็จ", "ยอดรายวัน รายเดือน และรายปี"],
   ["queue", "คิวตรวจ", "จัดลำดับผู้รับบริการ"],
   ["inventory", "คลังยา", "ยา เวชภัณฑ์ และแจ้งเตือนสต็อก"],
-  ["staff", "บุคลากร", "แพทย์ พยาบาล และสิทธิ์ใช้งาน"]
+  ["staff", "บุคลากร", "แพทย์ พยาบาล และสิทธิ์ใช้งาน"],
+  ["dailyReport", "รายงานประจำวัน", "ปิดยอดและพิมพ์เก็บแฟ้ม"],
+  ["financeSummary", "รายงาน & ใบเสร็จ", "ยอดรายวัน รายเดือน และรายปี"]
 ];
 
 const menuIcons = {
   dashboard: icons.dashboard,
-  ownerSummary: icons.chart,
-  dailyReport: icons.notes,
-  incomeExpense: icons.wallet,
-  queue: icons.queue,
-  appointments: icons.calendar,
-  patients: icons.users,
-  records: icons.notes,
-  billing: icons.wallet,
-  outstanding: icons.wallet,
-  financeSummary: icons.chart,
-  courses: icons.course,
-  services: icons.notes,
-  salesAnalysis: icons.chart,
-  inventory: icons.box,
-  staff: icons.staff
+  ownerSummary: '<span class="nav-emoji" aria-hidden="true">📊</span>',
+  appointments: '<span class="nav-emoji" aria-hidden="true">🗓️</span>',
+  patients: '<span class="nav-emoji" aria-hidden="true">👥</span>',
+  billing: '<span class="nav-emoji" aria-hidden="true">💳</span>',
+  outstanding: '<span class="nav-emoji" aria-hidden="true">🧾</span>',
+  courses: '<span class="nav-emoji" aria-hidden="true">🗒️</span>',
+  services: '<span class="nav-emoji" aria-hidden="true">📋</span>',
+  incomeExpense: '<span class="nav-emoji" aria-hidden="true">💰</span>',
+  salesAnalysis: '<span class="nav-emoji" aria-hidden="true">📈</span>',
+  records: '<span class="nav-emoji" aria-hidden="true">🗃️</span>',
+  queue: '<span class="nav-emoji" aria-hidden="true">☑️</span>',
+  inventory: '<span class="nav-emoji" aria-hidden="true">🧊</span>',
+  staff: '<span class="nav-emoji" aria-hidden="true">👤</span>',
+  dailyReport: '<span class="nav-emoji" aria-hidden="true">📄</span>',
+  financeSummary: '<span class="nav-emoji" aria-hidden="true">📊</span>'
 };
 
 const today = new Date();
@@ -130,7 +129,7 @@ const seedState = {
 const ledgerDataKeys = ["financeIncome", "financeExpenses", "staffFees", "doctorDf", "needleFees", "followups", "agents"];
 
 let state = loadState();
-let currentView = "dashboard";
+let currentView = "ownerSummary";
 let searchTerm = "";
 let activeFilter = "ทั้งหมด";
 let selectedPatientId = null;
