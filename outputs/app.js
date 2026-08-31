@@ -1127,6 +1127,12 @@ function ledgerMonthLabel(monthKey) {
   return new Date(`${year}-${month}-01T00:00:00`).toLocaleDateString("th-TH", { month: "long", year: "numeric" });
 }
 
+function thaiDateShort(dateString) {
+  const [year, month, day] = String(dateString || "").split("-");
+  if (!year || !month || !day) return dateString || "-";
+  return `${Number(day)}/${Number(month)}/${year}`;
+}
+
 function ledgerMonthPicker() {
   const options = ledgerAvailableMonths().map((month) => (
     `<option value="${month}" ${month === incomeExpenseMonth ? "selected" : ""}>${ledgerMonthLabel(month)}</option>`
@@ -1136,8 +1142,9 @@ function ledgerMonthPicker() {
 
 function simpleTable(columns, rows, extraClass = "") {
   if (!rows.length) return emptyState();
-  const head = columns.map((col) => `<th class="${col.calculated ? "calculated-col" : ""}">${col.label}${col.calculated ? "<span>สูตร</span>" : ""}</th>`).join("");
-  const body = rows.map((row) => `<tr class="${row.rowClass || ""}">${columns.map((col) => `<td class="${col.calculated ? "calculated-col" : ""}">${col.render ? col.render(row) : escapeHtml(row[col.key] ?? "-")}</td>`).join("")}</tr>`).join("");
+  const colClass = (col) => [col.calculated ? "calculated-col" : "", col.group ? `ledger-${col.group}-col` : ""].filter(Boolean).join(" ");
+  const head = columns.map((col) => `<th class="${colClass(col)}">${col.label}${col.calculated ? "<span>สูตร</span>" : ""}</th>`).join("");
+  const body = rows.map((row) => `<tr class="${row.rowClass || ""}">${columns.map((col) => `<td class="${colClass(col)}">${col.render ? col.render(row) : escapeHtml(row[col.key] ?? "-")}</td>`).join("")}</tr>`).join("");
   return `<div class="table-wrap ${extraClass}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
@@ -1232,24 +1239,51 @@ function renderEditableLedgerSheet(view) {
 function renderIncomeExpenseSummarySheet() {
   const income = rowsForLedgerMonth(allIncomeRows());
   const expenses = rowsForLedgerMonth(state.financeExpenses || []);
-  const rows = [{
-    date: incomeExpenseMonth,
-    cash: sumRows(income, "cash"),
-    transfer: sumRows(income, "transfer"),
-    card: sumRows(income, "card"),
-    spay: sumRows(income, "spay"),
-    expenseCash: sumRows(expenses, "cash"),
-    expenseTransfer: sumRows(expenses, "transfer"),
-    counter: sumRows(income, "cash") - sumRows(expenses, "cash"),
-    net: sumRows(income, "total") - sumRows(expenses, "amount")
-  }];
+  const [year, month] = incomeExpenseMonth.split("-").map(Number);
+  const dayCount = new Date(year, month, 0).getDate();
+  const rows = Array.from({ length: dayCount }, (_, index) => {
+    const date = `${incomeExpenseMonth}-${String(index + 1).padStart(2, "0")}`;
+    const dayIncome = income.filter((row) => row.date === date);
+    const dayExpenses = expenses.filter((row) => row.date === date);
+    return {
+      date,
+      cash: sumRows(dayIncome, "cash"),
+      transfer: sumRows(dayIncome, "transfer"),
+      card: sumRows(dayIncome, "card"),
+      spay: sumRows(dayIncome, "spay"),
+      expenseCash: sumRows(dayExpenses, "cash"),
+      expenseTransfer: sumRows(dayExpenses, "transfer"),
+      counter: sumRows(dayIncome, "cash") - sumRows(dayExpenses, "cash"),
+      scbDeposit: 0,
+      note: dayExpenses.map((row) => row.note).filter(Boolean).join(", ")
+    };
+  });
+  const totalRow = {
+    rowClass: "ledger-total-row",
+    date: "รวมทั้งเดือน",
+    cash: sumRows(rows, "cash"),
+    transfer: sumRows(rows, "transfer"),
+    card: sumRows(rows, "card"),
+    spay: sumRows(rows, "spay"),
+    expenseCash: sumRows(rows, "expenseCash"),
+    expenseTransfer: sumRows(rows, "expenseTransfer"),
+    counter: sumRows(rows, "counter"),
+    scbDeposit: sumRows(rows, "scbDeposit"),
+    note: ""
+  };
   const columns = [
-    { label: "เดือน", key: "date" }, { label: "สด", key: "cash", render: (row) => money(row.cash) }, { label: "โอน", key: "transfer", render: (row) => money(row.transfer) },
-    { label: "รูดSCB", key: "card", render: (row) => money(row.card) }, { label: "Spay", key: "spay", render: (row) => money(row.spay) },
-    { label: "รายจ่ายเงินสด", key: "expenseCash", render: (row) => money(row.expenseCash) }, { label: "รายจ่ายโอน", key: "expenseTransfer", render: (row) => money(row.expenseTransfer) },
-    { label: "ยอดเงินเคาน์เตอร์", key: "counter", calculated: true, render: (row) => money(row.counter) }, { label: "คงเหลือสุทธิ", key: "net", calculated: true, render: (row) => `<strong class="${row.net < 0 ? "outstanding-due" : "money"}">${money(row.net)}</strong>` }
+    { label: "วัน/เดือน/ปี", key: "date", group: "date", render: (row) => row.date === "รวมทั้งเดือน" ? row.date : thaiDateShort(row.date) },
+    { label: "สด", key: "cash", group: "income", render: (row) => row.cash ? money(row.cash) : "-" },
+    { label: "โอน", key: "transfer", group: "income", render: (row) => row.transfer ? money(row.transfer) : "-" },
+    { label: "รูดSCB", key: "card", group: "income", render: (row) => row.card ? money(row.card) : "-" },
+    { label: "Spay", key: "spay", group: "income", render: (row) => row.spay ? money(row.spay) : "-" },
+    { label: "เงิน คต.", key: "expenseCash", group: "expense", render: (row) => row.expenseCash ? money(row.expenseCash) : "-" },
+    { label: "โอน", key: "expenseTransfer", group: "expense", render: (row) => row.expenseTransfer ? money(row.expenseTransfer) : "-" },
+    { label: "ยอดเงินเคาน์เตอร์", key: "counter", group: "counter", calculated: true, render: (row) => row.counter ? money(row.counter) : "-" },
+    { label: "ฝากเข้าSCB", key: "scbDeposit", group: "deposit", render: (row) => row.scbDeposit ? money(row.scbDeposit) : "-" },
+    { label: "หมายเหตุ", key: "note", group: "note", render: (row) => escapeHtml(row.note || "-") }
   ];
-  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดรายรับ - รายจ่าย</h3><p>สรุปอัตโนมัติจากรายรับใบเสร็จและรายจ่ายที่คีย์ไว้</p></div></div>${simpleTable(columns, rows)}`;
+  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดรายรับ - รายจ่าย</h3><p>แสดงรายวันเหมือน Excel เดิม รายรับ/รายจ่ายดึงจากข้อมูลที่คีย์ไว้ และช่องสูตรจะไฮไลต์สี</p></div></div>${simpleTable(columns, [...rows, totalRow], "income-expense-summary-table excel-like-table")}`;
 }
 
 function renderMonthlySalesSheet() {

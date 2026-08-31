@@ -951,6 +951,80 @@ h1 {
   min-width: 1280px;
 }
 
+.income-expense-summary-table table {
+  min-width: 1040px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.excel-like-table th,
+.excel-like-table td {
+  border-right: 1px solid rgba(15, 23, 42, 0.16);
+  text-align: center;
+}
+
+.excel-like-table .ledger-date-col {
+  background: #dbeafe;
+  color: #0b2142;
+  font-weight: 950;
+}
+
+.excel-like-table .ledger-income-col {
+  background: #d9f0cf;
+  color: #244b1f;
+  font-weight: 900;
+}
+
+.excel-like-table th.ledger-income-col {
+  background: #6aa84f !important;
+  color: #fff;
+}
+
+.excel-like-table .ledger-expense-col {
+  background: #f8d0d0;
+  color: #6f1d1d;
+  font-weight: 900;
+}
+
+.excel-like-table th.ledger-expense-col {
+  background: #e06666 !important;
+  color: #fff;
+}
+
+.excel-like-table .ledger-counter-col {
+  background: #b7d4ff !important;
+  color: #073b88;
+  font-weight: 1000;
+}
+
+.excel-like-table th.ledger-counter-col {
+  background: #1d5bbf !important;
+  color: #fff;
+}
+
+.excel-like-table .ledger-deposit-col {
+  background: #ddb0c6;
+  color: #632446;
+  font-weight: 950;
+}
+
+.excel-like-table th.ledger-deposit-col {
+  background: #a64d79 !important;
+  color: #fff;
+}
+
+.excel-like-table .ledger-note-col {
+  min-width: 150px;
+  background: #fff700;
+  color: #111827;
+  font-weight: 950;
+}
+
+.excel-like-table th.ledger-note-col {
+  background: #bf9000 !important;
+  color: #fff;
+}
+
 .ledger-total-row td {
   border-top: 2px solid rgba(37, 99, 235, 0.3);
   background: linear-gradient(180deg, #f8fbff, #eaf6ff);
