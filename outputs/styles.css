@@ -843,7 +843,7 @@ h1 {
 
 .ledger-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr) auto;
   gap: 14px;
   margin-top: 14px;
   align-items: stretch;
@@ -885,6 +885,15 @@ h1 {
 .ledger-import-note strong {
   color: #075ed0;
   font-weight: 1000;
+}
+
+.ledger-export-button {
+  min-width: 150px;
+  justify-content: center;
+  border: 1px solid rgba(19, 91, 208, 0.2);
+  background: linear-gradient(135deg, #0c4aaa, #23b7ef);
+  box-shadow: 0 14px 28px rgba(14, 87, 194, 0.2);
+  white-space: nowrap;
 }
 
 .income-expense-tabs {
