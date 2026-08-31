@@ -31,6 +31,7 @@ const icons = {
 };
 
 const menu = [
+  ["dashboard", "Dashboard", "ภาพรวมระบบคลินิก"],
   ["ownerSummary", "ภาพรวมวันนี้", "บริการ คอร์ส และยอดเงินประจำวัน"],
   ["appointments", "นัดหมาย", "ตารางนัดและการติดตาม"],
   ["patients", "ลูกค้า (CRM)", "ศูนย์กลางข้อมูล ประวัติรักษา และคอร์ส"],
@@ -49,7 +50,7 @@ const menu = [
 ];
 
 const menuIcons = {
-  dashboard: icons.dashboard,
+  dashboard: '<span class="nav-emoji" aria-hidden="true">📊</span>',
   ownerSummary: '<span class="nav-emoji" aria-hidden="true">📊</span>',
   appointments: '<span class="nav-emoji" aria-hidden="true">🗓️</span>',
   patients: '<span class="nav-emoji" aria-hidden="true">👥</span>',
@@ -129,7 +130,7 @@ const seedState = {
 const ledgerDataKeys = ["financeIncome", "financeExpenses", "staffFees", "doctorDf", "needleFees", "followups", "agents"];
 
 let state = loadState();
-let currentView = "ownerSummary";
+let currentView = "dashboard";
 let searchTerm = "";
 let activeFilter = "ทั้งหมด";
 let selectedPatientId = null;
@@ -1134,7 +1135,7 @@ function ledgerMonthPicker() {
 function simpleTable(columns, rows, extraClass = "") {
   if (!rows.length) return emptyState();
   const head = columns.map((col) => `<th class="${col.calculated ? "calculated-col" : ""}">${col.label}${col.calculated ? "<span>สูตร</span>" : ""}</th>`).join("");
-  const body = rows.map((row) => `<tr>${columns.map((col) => `<td class="${col.calculated ? "calculated-col" : ""}">${col.render ? col.render(row) : escapeHtml(row[col.key] ?? "-")}</td>`).join("")}</tr>`).join("");
+  const body = rows.map((row) => `<tr class="${row.rowClass || ""}">${columns.map((col) => `<td class="${col.calculated ? "calculated-col" : ""}">${col.render ? col.render(row) : escapeHtml(row[col.key] ?? "-")}</td>`).join("")}</tr>`).join("");
   return `<div class="table-wrap ${extraClass}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
@@ -1248,21 +1249,62 @@ function renderIncomeExpenseSummarySheet() {
 
 function renderMonthlySalesSheet() {
   const income = rowsForLedgerMonth(allIncomeRows());
-  const dfTotal = rowsForLedgerMonth(state.doctorDf || []).reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100, 0);
-  const agentTotal = rowsForLedgerMonth(state.agents || []).reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100, 0);
-  const total = sumRows(income, "total");
-  const rows = [{
-    date: incomeExpenseMonth, online: 0, admin: 0, staff: total, total, dfBase: total, df: dfTotal, agent: agentTotal,
-    afterDf: total - dfTotal - agentTotal, newCustomer: income.filter((row) => row.newCustomer).length, oldCustomer: income.filter((row) => !row.newCustomer).length
-  }];
+  const doctorDf = rowsForLedgerMonth(state.doctorDf || []);
+  const agents = rowsForLedgerMonth(state.agents || []);
+  const [year, month] = incomeExpenseMonth.split("-").map(Number);
+  const dayCount = new Date(year, month, 0).getDate();
+  let cumulativeAfterDf = 0;
+  const rows = Array.from({ length: dayCount }, (_, index) => {
+    const date = `${incomeExpenseMonth}-${String(index + 1).padStart(2, "0")}`;
+    const dayIncome = income.filter((row) => row.date === date);
+    const dayDfRows = doctorDf.filter((row) => row.date === date);
+    const dayAgentRows = agents.filter((row) => row.date === date);
+    const total = sumRows(dayIncome, "total");
+    const df = dayDfRows.reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100, 0);
+    const agent = dayAgentRows.reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100, 0);
+    const afterDf = total - df - agent;
+    cumulativeAfterDf += afterDf;
+    return {
+      date,
+      online: 0,
+      admin: 0,
+      staff: total,
+      total,
+      dfBase: dayDfRows.reduce((sum, row) => sum + Number(row.saleAmount || 0), 0),
+      df,
+      agent,
+      nonDf: Math.max(total - dayDfRows.reduce((sum, row) => sum + Number(row.saleAmount || 0), 0), 0),
+      afterDf,
+      cumulativeAfterDf,
+      newCustomer: dayIncome.filter((row) => row.newCustomer).length,
+      oldCustomer: dayIncome.filter((row) => !row.newCustomer && Number(row.total || 0) > 0).length
+    };
+  });
+  const totalRow = {
+    rowClass: "ledger-total-row",
+    date: "รวมทั้งเดือน",
+    online: sumRows(rows, "online"),
+    admin: sumRows(rows, "admin"),
+    staff: sumRows(rows, "staff"),
+    total: sumRows(rows, "total"),
+    dfBase: sumRows(rows, "dfBase"),
+    df: sumRows(rows, "df"),
+    agent: sumRows(rows, "agent"),
+    nonDf: sumRows(rows, "nonDf"),
+    afterDf: sumRows(rows, "afterDf"),
+    cumulativeAfterDf,
+    newCustomer: sumRows(rows, "newCustomer"),
+    oldCustomer: sumRows(rows, "oldCustomer")
+  };
   const columns = [
-    { label: "เดือน", key: "date" }, { label: "Patricia", key: "online", render: (row) => money(row.online) }, { label: "แอดมิน", key: "admin", render: (row) => money(row.admin) },
+    { label: "วันที่", key: "date" }, { label: "Patricia", key: "online", render: (row) => money(row.online) }, { label: "แอดมิน", key: "admin", render: (row) => money(row.admin) },
     { label: "อีฟ+แนน", key: "staff", render: (row) => money(row.staff) }, { label: "รวมยอดสุทธิ", key: "total", calculated: true, render: (row) => money(row.total) },
     { label: "ยอดที่คิด DF", key: "dfBase", calculated: true, render: (row) => money(row.dfBase) }, { label: "ค่า DF", key: "df", calculated: true, render: (row) => money(row.df) },
-    { label: "ค่าคอม Agent", key: "agent", calculated: true, render: (row) => money(row.agent) }, { label: "ยอดหลังหัก DF", key: "afterDf", calculated: true, render: (row) => money(row.afterDf) },
+    { label: "ค่าคอม Agent", key: "agent", calculated: true, render: (row) => money(row.agent) }, { label: "ยอดไม่คิด DF", key: "nonDf", calculated: true, render: (row) => money(row.nonDf) },
+    { label: "ยอดหลังหัก DF", key: "afterDf", calculated: true, render: (row) => money(row.afterDf) }, { label: "ยอดสะสมหลังหัก DF", key: "cumulativeAfterDf", calculated: true, render: (row) => money(row.cumulativeAfterDf) },
     { label: "New", key: "newCustomer" }, { label: "Old", key: "oldCustomer" }
   ];
-  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>คำนวณจากรายรับ, DF หมอ และ Agent</p></div></div>${simpleTable(columns, rows)}`;
+  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>แสดงรายวันของเดือนที่เลือก คำนวณจากรายรับ, DF หมอ และ Agent พร้อมยอดสะสม</p></div></div>${simpleTable(columns, [...rows, totalRow], "monthly-sales-ledger-table")}`;
 }
 
 function salesAnalysisYears() {
