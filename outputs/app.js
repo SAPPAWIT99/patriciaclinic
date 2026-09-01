@@ -152,9 +152,7 @@ let incomeExpenseMonth = todayIso.slice(0, 7);
 
 const incomeExpenseTabs = [
   ["income", "รายรับ"],
-  ["financeIncome", "คีย์รายรับ"],
   ["financeExpenses", "รายจ่าย"],
-  ["scbDeposits", "ฝากเข้า SCB"],
   ["incomeSummary", "สรุปรายรับ-รายจ่าย"],
   ["monthlySales", "สรุปยอดขายประจำเดือน"],
   ["staffFees", "ค่ามือ"],
@@ -1328,7 +1326,7 @@ function renderIncomeExpenseSummarySheet() {
     { label: "ฝากเข้าSCB", key: "scbDeposit", group: "deposit", render: (row) => row.scbDeposit ? money(row.scbDeposit) : "-" },
     { label: "หมายเหตุ", key: "note", group: "note", render: (row) => escapeHtml(row.note || "-") }
   ];
-  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดรายรับ - รายจ่าย</h3><p>แสดงรายวันเหมือน Excel เดิม รายรับ/รายจ่ายดึงจากข้อมูลที่คีย์ไว้ และช่องสูตรจะไฮไลต์สี</p></div></div>${simpleTable(columns, [...rows, incomeExpenseSummaryTotalRow(rows)], "income-expense-summary-table excel-like-table")}`;
+  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดรายรับ - รายจ่าย</h3><p>แสดงรายวันเหมือน Excel เดิม รายรับ/รายจ่ายดึงจากข้อมูลที่คีย์ไว้ และช่องสูตรจะไฮไลต์สี</p></div><div class="ledger-head-actions"><button data-action="add" data-view="scbDeposits" class="secondary">${icons.plus}คีย์ฝากเข้า SCB</button></div></div>${simpleTable(columns, [...rows, incomeExpenseSummaryTotalRow(rows)], "income-expense-summary-table excel-like-table")}`;
 }
 
 function incomeExpenseSummaryTotalRow(rows) {
@@ -1678,20 +1676,6 @@ function exportIncomeExpenseWorkbook() {
       ]
     },
     {
-      name: "คีย์รายรับ",
-      rows: exportLedgerRows(state.financeIncome || []),
-      columns: [
-        { label: "วันที่", key: "date" }, { label: "ชื่อ", key: "patient" }, { label: "รายการ", key: "item" },
-        { label: "มัดจำ", value: (row) => exportMoneyValue(row.deposit) }, { label: "BL", value: (row) => exportMoneyValue(row.bl) },
-        { label: "UP", value: (row) => exportMoneyValue(row.up) }, { label: "ใช้คอร์ส", key: "courseUse" },
-        { label: "เงินสด", value: (row) => exportMoneyValue(row.cash), group: "income" },
-        { label: "โอน", value: (row) => exportMoneyValue(row.transfer), group: "income" },
-        { label: "รูดบัตร", value: (row) => exportMoneyValue(row.card), group: "income" },
-        { label: "SPay", value: (row) => exportMoneyValue(row.spay), group: "income" },
-        { label: "ยอดรวม", value: (row) => exportMoneyValue(row.total), calculated: true }, { label: "หมายเหตุ", key: "note" }
-      ]
-    },
-    {
       name: "รายจ่าย",
       rows: exportLedgerRows(state.financeExpenses || []),
       columns: [
@@ -1783,13 +1767,6 @@ function exportIncomeExpenseWorkbook() {
         { label: "บัญชีโอน", key: "bankAccount" }, { label: "หมายเหตุ", key: "note" }
       ]
     },
-    {
-      name: "ฝากเข้า SCB",
-      rows: exportLedgerRows(state.scbDeposits || []),
-      columns: [
-        { label: "วันที่", key: "date" }, { label: "ฝากเข้าSCB", value: (row) => exportMoneyValue(row.amount), group: "deposit" }, { label: "หมายเหตุ", key: "note" }
-      ]
-    }
   ];
   downloadFile(buildXlsxWorkbook(sheets), `patricia-income-expense-${incomeExpenseMonth}.xlsx`);
 }
