@@ -156,7 +156,6 @@ const incomeExpenseTabs = [
   ["financeExpenses", "รายจ่าย"],
   ["scbDeposits", "ฝากเข้า SCB"],
   ["incomeSummary", "สรุปรายรับ-รายจ่าย"],
-  ["salesDailyInputs", "คีย์ยอดขายรายวัน"],
   ["monthlySales", "สรุปยอดขายประจำเดือน"],
   ["staffFees", "ค่ามือ"],
   ["doctorDf", "DF หมอ"],
@@ -381,7 +380,7 @@ function syncStaffSalesLabels() {
 }
 
 function staffSalesHeaderInput(label = staffSalesLabel()) {
-  return `<label class="staff-sales-header-edit" title="แก้ชื่อช่องพนักงาน"><span>${escapeHtml(label)}</span><input data-action="staffSalesLabel" value="${escapeHtml(label)}" aria-label="ชื่อช่องพนักงาน"></label>`;
+  return `<label class="staff-sales-header-edit" title="แก้ชื่อพนักงาน"><span>ชื่อพนักงาน</span><input data-action="staffSalesLabel" value="${escapeHtml(label)}" aria-label="ชื่อพนักงาน"></label>`;
 }
 
 function setHeader() {
@@ -1401,7 +1400,7 @@ function renderMonthlySalesSheet() {
     { label: "ยอดหลังหัก DF", key: "afterDf", calculated: true, render: (row) => money(row.afterDf) }, { label: "ยอดสะสมหลังหัก DF", key: "cumulativeAfterDf", calculated: true, render: (row) => money(row.cumulativeAfterDf) },
     { label: "New", key: "newCustomer" }, { label: "Old", key: "oldCustomer" }
   ];
-  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>ยอดขายจากใบเสร็จ/รายรับจะเข้าอยู่ช่อง${escapeHtml(staffLabel)}อัตโนมัติ ถ้าต้องการแยก Patricia หรือแอดมิน ให้คีย์เพิ่มในแท็บคีย์ยอดขายรายวัน</p></div></div>${simpleTable(columns, [...rows, monthlySalesTotalRow(rows)], "monthly-sales-ledger-table")}`;
+  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>ยอดขายจากใบเสร็จ/รายรับจะเข้าอยู่ช่อง${escapeHtml(staffLabel)}อัตโนมัติ และแก้ชื่อพนักงานได้จากหัวคอลัมน์โดยตรง</p></div></div>${simpleTable(columns, [...rows, monthlySalesTotalRow(rows)], "monthly-sales-ledger-table")}`;
 }
 
 function monthlySalesTotalRow(rows) {
@@ -1717,18 +1716,6 @@ function exportIncomeExpenseWorkbook() {
         { label: "ยอดเงินเคาน์เตอร์", value: (row) => exportMoneyValue(row.counter), group: "counter", calculated: true },
         { label: "ฝากเข้าSCB", value: (row) => exportMoneyValue(row.scbDeposit), group: "deposit" },
         { label: "หมายเหตุ", key: "note", group: "note" }
-      ]
-    },
-    {
-      name: "คีย์ยอดขายรายวัน",
-      rows: exportLedgerRows(state.salesDailyInputs || []),
-      columns: [
-        { label: "วันที่", key: "date" }, { label: "Patricia", value: (row) => exportMoneyValue(row.online), group: "income" },
-        { label: "แอดมิน", value: (row) => exportMoneyValue(row.admin), group: "income" },
-        { label: staffLabel, value: (row) => exportMoneyValue(row.staff), group: "income" },
-        { label: "รวมยอดสุทธิ", value: (row) => exportMoneyValue(row.online) + exportMoneyValue(row.admin) + exportMoneyValue(row.staff), calculated: true },
-        { label: "New", value: (row) => exportMoneyValue(row.newCustomer) }, { label: "Old", value: (row) => exportMoneyValue(row.oldCustomer) },
-        { label: "หมายเหตุ", key: "note" }
       ]
     },
     {
