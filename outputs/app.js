@@ -197,6 +197,13 @@ function normalizeState(data = {}) {
   next.serviceCatalog = Array.isArray(next.serviceCatalog)
     ? next.serviceCatalog.filter((item) => !deletedIds.has(item.id))
     : [];
+  next.courses = Array.isArray(next.courses)
+    ? next.courses.map((course) => ({
+      ...course,
+      giftItems: course.giftItems ?? course.freebieItems ?? "",
+      giftValue: Number(course.giftValue ?? course.freebieValue ?? 0)
+    }))
+    : [];
   return next;
 }
 
@@ -340,6 +347,16 @@ function badge(text) {
 
 function initials(name) {
   return name.split(" ").map((part) => part[0]).slice(0, 2).join("");
+}
+
+function personNameKey(name) {
+  return String(name || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function duplicatePatientByName(name, ignoreId = "") {
+  const key = personNameKey(name);
+  if (!key) return null;
+  return state.patients.find((patient) => patient.id !== ignoreId && personNameKey(patient.name) === key) || null;
 }
 
 function setHeader() {
@@ -1816,6 +1833,13 @@ function courseProgress(row) {
   </div>`;
 }
 
+function courseGiftSummary(course) {
+  const giftItems = String(course.giftItems || course.freebieItems || "").trim();
+  const giftValue = Number(course.giftValue || course.freebieValue || 0);
+  if (!giftItems && giftValue <= 0) return "";
+  return `<div class="course-gift-summary"><strong>ของแถม</strong><span>${escapeHtml(giftItems || "-")}${giftValue > 0 ? ` · มูลค่า ${money(giftValue)}` : ""}</span></div>`;
+}
+
 function recordFullName(row) {
   const fullName = `${row.firstName || ""} ${row.lastName || ""}`.trim();
   return fullName || row.patient || "-";
@@ -2151,6 +2175,7 @@ function renderPendingPaymentNotice(patientName) {
 
 function renderPatientCourses(courses, patientName) {
   const pendingNotice = renderPendingPaymentNotice(patientName);
+  const patient = patientByName(patientName);
   if (!courses.length) return `${pendingNotice}${emptyState()}`;
   return `${pendingNotice}<div class="inventory-list">${courses.map((course) => {
     const pendingCourseBills = pendingBillsForCourse(course);
@@ -2165,6 +2190,7 @@ function renderPatientCourses(courses, patientName) {
       <strong>${escapeHtml(course.course)}</strong>
       ${pendingBadge}
       <span class="muted">${escapeHtml(course.service)}</span>
+      ${courseGiftSummary(course)}
     </div>
     <div class="course-usage">
       ${courseProgress(course)}
@@ -2172,6 +2198,7 @@ function renderPatientCourses(courses, patientName) {
     <div class="course-item-actions">
       ${badge(courseStatus(course))}
       ${payPendingButton}
+      <button class="action-button edit-action" title="แก้ไขคอร์ส" aria-label="แก้ไขคอร์ส" data-action="repairCourse" data-patient-id="${escapeHtml(patient.id)}" data-id="${escapeHtml(course.id)}">${icons.edit}<span>แก้</span></button>
       <button class="deduct-button course-deduct-action" title="ตัดคอร์ส / ใช้บริการ" aria-label="ตัดคอร์ส / ใช้บริการ" data-action="deduct" data-id="${course.id}" ${courseRemaining(course) <= 0 ? "disabled" : ""}>${icons.deduct}<span>ตัดคอร์ส / ใช้บริการ</span></button>
       <button class="action-button danger delete-action" title="ลบคอร์ส" aria-label="ลบคอร์ส" data-action="delete" data-view="courses" data-id="${course.id}">${icons.trash}<span>ลบ</span></button>
     </div>
@@ -2191,6 +2218,7 @@ function renderPatientCourseRepair(patient, courses) {
       <td>${escapeHtml(course.startDate || "-")}</td>
       <td>${escapeHtml(course.nextDate || "-")}</td>
       <td>${badge(courseStatus(course))}</td>
+      <td>${courseGiftSummary(course) || "<span class='muted'>-</span>"}</td>
       <td>
         <div class="table-actions">
           <button class="action-button edit-action" title="แก้ไขคอร์ส" aria-label="แก้ไขคอร์ส" data-action="repairCourse" data-patient-id="${escapeHtml(patient.id)}" data-id="${escapeHtml(course.id)}">${icons.edit}<span>แก้</span></button>
@@ -2212,7 +2240,7 @@ function renderPatientCourseRepair(patient, courses) {
     </section>
     ${courses.length ? `<div class="table-wrap course-repair-table">
       <table>
-        <thead><tr><th>คอร์ส</th><th>ทั้งหมด</th><th>ใช้แล้ว</th><th>คงเหลือ</th><th>วันเริ่ม</th><th>นัดถัดไป</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+        <thead><tr><th>คอร์ส</th><th>ทั้งหมด</th><th>ใช้แล้ว</th><th>คงเหลือ</th><th>วันเริ่ม</th><th>นัดถัดไป</th><th>สถานะ</th><th>ของแถม</th><th>จัดการ</th></tr></thead>
         <tbody>${body}</tbody>
       </table>
     </div>` : `<div class="repair-empty">${emptyState()}</div>`}`;
@@ -2222,7 +2250,7 @@ function renderPatientHistory(patient, records, courses) {
   const bills = state.billing.filter((item) => item.patient === patient.name);
   const rows = [
     ...bills.map((item) => ({ date: item.date, text: item.item, amount: Number(item.amount || 0), type: item.status, billId: item.id })),
-    ...courses.map((item) => ({ date: item.startDate, text: `ซื้อคอร์ส ${item.course}`, amount: Number(item.price || 0), type: courseStatus(item) })),
+    ...courses.map((item) => ({ date: item.startDate, text: `ซื้อคอร์ส ${item.course}${item.giftItems ? ` · ของแถม ${item.giftItems}` : ""}`, amount: Number(item.price || 0), type: courseStatus(item) })),
     ...records.map((item) => ({ date: item.date, text: `บันทึกเวชระเบียน`, type: "ข้อมูล" }))
   ].sort((a, b) => String(b.date).localeCompare(String(a.date)));
   if (!rows.length) return emptyState();
@@ -2302,7 +2330,8 @@ function nextPatientId() {
 function syncPatientFromRecord(record) {
   const name = recordFullName(record);
   if (!name || name === "-") return;
-  const existing = state.patients.find((patient) => patient.name === name || (record.phone && patient.phone === record.phone));
+  const nameKey = personNameKey(name);
+  const existing = state.patients.find((patient) => personNameKey(patient.name) === nameKey || (record.phone && patient.phone === record.phone));
   const patientData = {
     id: existing?.id || nextPatientId(),
     name,
@@ -2654,12 +2683,13 @@ const viewConfig = {
   courses: {
     addLabel: "เพิ่มคอร์สลูกค้า",
     filters: ["ใช้งานอยู่", "ใกล้หมด", "ใช้ครบแล้ว", "พักคอร์ส"],
-    fields: [["id", "รหัสคอร์ส"], ["patient", "ลูกค้า"], ["course", "ชื่อคอร์ส"], ["service", "บริการ"], ["total", "จำนวนครั้งทั้งหมด", "number"], ["used", "ใช้แล้ว", "number"], ["startDate", "วันเริ่มคอร์ส", "date"], ["nextDate", "นัดครั้งถัดไป", "date"], ["status", "สถานะ"]],
+    fields: [["id", "รหัสคอร์ส"], ["patient", "ลูกค้า"], ["course", "ชื่อคอร์ส"], ["service", "บริการ"], ["total", "จำนวนครั้งทั้งหมด", "number"], ["used", "ใช้แล้ว", "number"], ["price", "ราคา/มูลค่า", "number"], ["giftItems", "รายการของแถม", "textarea"], ["giftValue", "มูลค่าของแถม", "number"], ["startDate", "วันเริ่มคอร์ส", "date"], ["nextDate", "นัดครั้งถัดไป", "date"], ["status", "สถานะ"]],
     columns: [
       { label: "ลูกค้า", key: "patient", render: (row) => `<div class="name-cell"><span class="avatar">${initials(row.patient)}</span><div><strong>${escapeHtml(row.patient)}</strong><div class="muted">${escapeHtml(row.id)}</div></div></div>` },
       { label: "คอร์ส / บริการ", key: "course", render: (row) => `<strong>${escapeHtml(row.course)}</strong><div class="muted">${escapeHtml(row.service)}</div>` },
       { label: "การใช้คอร์ส", key: "used", render: (row) => courseProgress(row) },
       { label: "เหลือ", key: "remaining", render: (row) => `<strong>${courseRemaining(row)} ครั้ง</strong>` },
+      { label: "ของแถม", key: "giftItems", render: (row) => courseGiftSummary(row) || "<span class='muted'>-</span>" },
       { label: "ใช้ล่าสุด", key: "lastUsedDate", render: (row) => row.lastUsedDate ? escapeHtml(row.lastUsedDate) : "<span class='muted'>-</span>" },
       { label: "นัดถัดไป", key: "nextDate", render: (row) => row.nextDate ? escapeHtml(row.nextDate) : "<span class='muted'>-</span>" },
       { label: "สถานะ", key: "status", render: (row) => badge(courseStatus(row)) }
@@ -2709,7 +2739,7 @@ function openForm(view, id) {
   const existing = id ? state[view].find((item) => item.id === id) : null;
   const generatedPrefixes = { serviceCatalog: "SV", courses: "C", financeIncome: "FI", financeExpenses: "EX", scbDeposits: "SCB", salesDailyInputs: "SD", staffFees: "HF", doctorDf: "DF", needleFees: "ND", followups: "FU", agents: "AG" };
   const generatedId = generatedPrefixes[view] ? `${generatedPrefixes[view]}-${String(Date.now()).slice(-6)}` : "";
-  const optionalFields = new Set(["note", "newCustomer", "oldCustomer", "deposit", "bl", "up", "courseUse", "cash", "transfer", "card", "spay", "total", "amount", "followupDate", "bankAccount"]);
+  const optionalFields = new Set(["note", "newCustomer", "oldCustomer", "deposit", "bl", "up", "courseUse", "cash", "transfer", "card", "spay", "total", "amount", "followupDate", "bankAccount", "price", "giftItems", "giftValue"]);
   setModalSize("default");
   const patientOptions = state.patients.map((patient) => (
     `<option value="${escapeHtml(patient.name)}" label="${escapeHtml(`${patient.id || "-"} · ${patient.phone || "-"}`)}"></option>`
@@ -2779,6 +2809,15 @@ function openForm(view, id) {
     setup.fields.forEach(([key, , type]) => {
       if (type === "number") item[key] = Number(item[key]);
     });
+    if (view === "patients") {
+      item.name = String(item.name || "").trim().replace(/\s+/g, " ");
+      const duplicate = duplicatePatientByName(item.name, existing?.id || "");
+      if (duplicate) {
+        alert(`มีชื่อลูกค้า "${duplicate.name}" อยู่แล้ว ไม่สามารถเพิ่มซ้ำได้`);
+        modalFields.querySelector('[name="name"]')?.focus();
+        return;
+      }
+    }
     if (view === "financeIncome") {
       const paymentTotal = Number(item.cash || 0) + Number(item.transfer || 0) + Number(item.card || 0) + Number(item.spay || 0);
       item.total = Number(item.total || paymentTotal || 0);
@@ -2792,10 +2831,11 @@ function openForm(view, id) {
       item.patient = `${item.firstName || ""} ${item.lastName || ""}`.trim();
       syncPatientFromRecord(item);
     }
+    const savedItem = view === "courses" && existing ? { ...existing, ...item } : item;
     if (existing) {
-      state[view] = state[view].map((row) => row.id === id ? item : row);
+      state[view] = state[view].map((row) => row.id === id ? savedItem : row);
     } else {
-      state[view] = [item, ...state[view]];
+      state[view] = [savedItem, ...state[view]];
     }
     saveState();
     modal.close();
@@ -2903,6 +2943,14 @@ function openRepairCourse(patientId, courseId = "") {
       <label>ราคา/มูลค่า</label>
       <input name="price" type="number" min="0" value="${Number(existing?.price || 0)}">
     </div>
+    <div class="field full">
+      <label>รายการของแถม</label>
+      <textarea name="giftItems" placeholder="เช่น ทรีทเมนต์หน้า 1 ครั้ง, มาสก์หน้า">${escapeHtml(existing?.giftItems || existing?.freebieItems || "")}</textarea>
+    </div>
+    <div class="field">
+      <label>มูลค่าของแถม</label>
+      <input name="giftValue" type="number" min="0" value="${Number(existing?.giftValue || existing?.freebieValue || 0)}">
+    </div>
     <div class="field">
       <label>วันเริ่มคอร์ส</label>
       <input name="startDate" type="date" value="${escapeHtml(existing?.startDate || todayIso)}" required>
@@ -2956,6 +3004,10 @@ function openRepairCourse(patientId, courseId = "") {
       nextDate: String(form.get("nextDate") || ""),
       status: used >= total && total > 0 ? "ใช้ครบแล้ว" : String(form.get("status") || "ใช้งานอยู่"),
       price: Math.max(0, Number(form.get("price") || 0)),
+      giftItems: String(form.get("giftItems") || "").trim(),
+      giftValue: Math.max(0, Number(form.get("giftValue") || 0)),
+      freebieItems: "",
+      freebieValue: 0,
       catalogId: existing?.catalogId || ""
     };
     if (!item.course) {
@@ -3235,6 +3287,8 @@ function openBuyCourse(patientId) {
       nextDate: String(form.get("nextDate") || ""),
       status: "ใช้งานอยู่",
       price: Number(selected.price || 0) * qty,
+      giftItems: "",
+      giftValue: 0,
       catalogId: original?.id || selected.id,
       billId
     })), ...state.courses];

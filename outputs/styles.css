@@ -3563,6 +3563,32 @@ tr:last-child td {
   flex-basis: 100%;
 }
 
+.course-gift-summary {
+  flex-basis: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  border-radius: 8px;
+  background: linear-gradient(135deg, #fff7ed, #eff6ff);
+  color: #0b2142;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.course-gift-summary strong {
+  flex: 0 0 auto;
+  color: #b45309;
+}
+
+.course-gift-summary span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .course-usage {
   grid-area: usage;
   min-width: 0;
