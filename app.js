@@ -74,6 +74,9 @@ const todayIso = today.toISOString().slice(0, 10);
 const seedState = {
   deletedServiceCatalogIds: ["SV-001", "SV-002", "SV-003"],
   importedExcelBatches: [],
+  appSettings: {
+    staffSalesLabel: "อีฟ+แนน"
+  },
   patients: [
     { id: "P-1001", name: "ปาริณา ศรีสุข", phone: "081-234-7788", age: 34, allergy: "ไม่มี", lastVisit: todayIso, tag: "ติดตามผล" },
     { id: "P-1002", name: "กิตติพงศ์ วัฒนา", phone: "089-777-2401", age: 46, allergy: "Penicillin", lastVisit: "2026-06-01", tag: "เรื้อรัง" },
@@ -183,6 +186,7 @@ function setModalSize(size = "default") {
 
 function normalizeState(data = {}) {
   const next = { ...structuredClone(seedState), ...data };
+  next.appSettings = { ...structuredClone(seedState.appSettings), ...(data.appSettings || {}) };
   ledgerDataKeys.forEach((key) => {
     next[key] = Array.isArray(next[key]) ? next[key].filter((row) => row.source !== "excel-2026-08") : [];
   });
@@ -357,6 +361,20 @@ function duplicatePatientByName(name, ignoreId = "") {
   const key = personNameKey(name);
   if (!key) return null;
   return state.patients.find((patient) => patient.id !== ignoreId && personNameKey(patient.name) === key) || null;
+}
+
+function staffSalesLabel() {
+  return String(state.appSettings?.staffSalesLabel || "อีฟ+แนน").trim() || "อีฟ+แนน";
+}
+
+function syncStaffSalesLabels() {
+  const label = staffSalesLabel();
+  const setup = viewConfig?.salesDailyInputs;
+  if (!setup) return;
+  const staffField = setup.fields.find(([key]) => key === "staff");
+  if (staffField) staffField[1] = `ยอด${label}`;
+  const staffColumn = setup.columns.find((column) => column.key === "staff");
+  if (staffColumn) staffColumn.label = label;
 }
 
 function setHeader() {
@@ -1251,15 +1269,24 @@ function renderIncomeSheet() {
 function renderEditableLedgerSheet(view) {
   const setup = viewConfig[view];
   const rows = rowsForLedgerMonth(state[view] || []).filter(matchesSearch).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const currentStaffLabel = staffSalesLabel();
   const helpText = view === "salesDailyInputs"
-    ? "คีย์ยอดขายแยกช่อง Patricia, แอดมิน, อีฟ+แนน และจำนวนลูกค้า New/Old ส่วนยอดรวมและยอดสะสมระบบจะคำนวณเอง"
+    ? `คีย์ยอดขายแยกช่อง Patricia, แอดมิน, ${currentStaffLabel} และจำนวนลูกค้า New/Old ส่วนยอดรวมและยอดสะสมระบบจะคำนวณเอง`
     : view === "scbDeposits"
       ? "คีย์ยอดฝากเข้า SCB แยกตามวัน แล้วหน้า สรุปยอดรายรับ - รายจ่าย จะดึงไปแสดงในคอลัมน์ฝากเข้าSCB"
     : "คีย์ข้อมูลแทนชีต Excel เดิม แก้ไขและลบได้";
+  const staffLabelEditor = view === "salesDailyInputs" ? `
+    <label class="ledger-staff-label-editor">
+      <span>ชื่อช่องพนักงาน</span>
+      <input data-action="staffSalesLabel" value="${escapeHtml(currentStaffLabel)}" placeholder="เช่น อีฟ+แนน">
+    </label>` : "";
   return `
     <div class="ledger-sheet-head">
       <div><h3>${setup.addLabel.replace("เพิ่ม", "")}</h3><p>${helpText}</p></div>
-      <button data-action="add" data-view="${view}">${icons.plus}${setup.addLabel}</button>
+      <div class="ledger-head-actions">
+        ${staffLabelEditor}
+        <button data-action="add" data-view="${view}">${icons.plus}${setup.addLabel}</button>
+      </div>
     </div>
     ${table(setup.columns, rows, view)}`;
 }
@@ -1322,17 +1349,24 @@ function incomeExpenseSummaryTotalRow(rows) {
 
 function monthlySalesRows() {
   const salesInputs = rowsForLedgerMonth(state.salesDailyInputs || []);
+  const income = rowsForLedgerMonth(allIncomeRows());
   const doctorDf = rowsForLedgerMonth(state.doctorDf || []);
   const agents = rowsForLedgerMonth(state.agents || []);
   let cumulativeAfterDf = 0;
   return ledgerMonthDates().map((date) => {
     const daySalesRows = salesInputs.filter((row) => row.date === date);
+    const dayIncome = income.filter((row) => row.date === date);
     const dayDfRows = doctorDf.filter((row) => row.date === date);
     const dayAgentRows = agents.filter((row) => row.date === date);
+    const receiptTotal = sumRows(dayIncome, "total");
     const online = sumRows(daySalesRows, "online");
     const admin = sumRows(daySalesRows, "admin");
-    const staff = sumRows(daySalesRows, "staff");
+    const manualStaff = sumRows(daySalesRows, "staff");
+    const manualTotal = online + admin + manualStaff;
+    const staff = manualTotal ? manualStaff : receiptTotal;
     const total = online + admin + staff;
+    const autoNewCustomer = dayIncome.filter((row) => row.newCustomer).length;
+    const autoCustomerCount = new Set(dayIncome.map((row) => row.patient).filter(Boolean)).size;
     const df = dayDfRows.reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.dfPercent || 10) / 100, 0);
     const agent = dayAgentRows.reduce((sum, row) => sum + Number(row.saleAmount || 0) * Number(row.commissionPercent || 10) / 100, 0);
     const afterDf = total - df - agent;
@@ -1349,23 +1383,24 @@ function monthlySalesRows() {
       nonDf: Math.max(total - dayDfRows.reduce((sum, row) => sum + Number(row.saleAmount || 0), 0), 0),
       afterDf,
       cumulativeAfterDf,
-      newCustomer: sumRows(daySalesRows, "newCustomer"),
-      oldCustomer: sumRows(daySalesRows, "oldCustomer")
+      newCustomer: sumRows(daySalesRows, "newCustomer") || autoNewCustomer,
+      oldCustomer: sumRows(daySalesRows, "oldCustomer") || Math.max(autoCustomerCount - autoNewCustomer, 0)
     };
   });
 }
 
 function renderMonthlySalesSheet() {
   const rows = monthlySalesRows();
+  const staffLabel = staffSalesLabel();
   const columns = [
     { label: "วันที่", key: "date" }, { label: "Patricia", key: "online", render: (row) => money(row.online) }, { label: "แอดมิน", key: "admin", render: (row) => money(row.admin) },
-    { label: "อีฟ+แนน", key: "staff", render: (row) => money(row.staff) }, { label: "รวมยอดสุทธิ", key: "total", calculated: true, render: (row) => money(row.total) },
+    { label: staffLabel, key: "staff", render: (row) => money(row.staff) }, { label: "รวมยอดสุทธิ", key: "total", calculated: true, render: (row) => money(row.total) },
     { label: "ยอดที่คิด DF", key: "dfBase", calculated: true, render: (row) => money(row.dfBase) }, { label: "ค่า DF", key: "df", calculated: true, render: (row) => money(row.df) },
     { label: "ค่าคอม Agent", key: "agent", calculated: true, render: (row) => money(row.agent) }, { label: "ยอดไม่คิด DF", key: "nonDf", calculated: true, render: (row) => money(row.nonDf) },
     { label: "ยอดหลังหัก DF", key: "afterDf", calculated: true, render: (row) => money(row.afterDf) }, { label: "ยอดสะสมหลังหัก DF", key: "cumulativeAfterDf", calculated: true, render: (row) => money(row.cumulativeAfterDf) },
     { label: "New", key: "newCustomer" }, { label: "Old", key: "oldCustomer" }
   ];
-  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>แสดงรายวันของเดือนที่เลือก โดยดึงยอดขายจากแท็บคีย์ยอดขายรายวัน แล้วคำนวณ DF, Agent และยอดสะสมอัตโนมัติ</p></div></div>${simpleTable(columns, [...rows, monthlySalesTotalRow(rows)], "monthly-sales-ledger-table")}`;
+  return `<div class="ledger-sheet-head"><div><h3>สรุปยอดขายประจำเดือน</h3><p>ยอดขายจากใบเสร็จ/รายรับจะเข้าอยู่ช่อง${escapeHtml(staffLabel)}อัตโนมัติ ถ้าต้องการแยก Patricia หรือแอดมิน ให้คีย์เพิ่มในแท็บคีย์ยอดขายรายวัน</p></div></div>${simpleTable(columns, [...rows, monthlySalesTotalRow(rows)], "monthly-sales-ledger-table")}`;
 }
 
 function monthlySalesTotalRow(rows) {
@@ -1621,6 +1656,7 @@ function downloadFile(blob, filename) {
 function exportIncomeExpenseWorkbook() {
   const summaryRows = incomeExpenseSummaryRows();
   const monthlyRows = monthlySalesRows();
+  const staffLabel = staffSalesLabel();
   const staffRows = exportLedgerRows(state.staffFees || []);
   const doctorRows = exportLedgerRows(state.doctorDf || []);
   const needleRows = exportLedgerRows(state.needleFees || []);
@@ -1688,7 +1724,7 @@ function exportIncomeExpenseWorkbook() {
       columns: [
         { label: "วันที่", key: "date" }, { label: "Patricia", value: (row) => exportMoneyValue(row.online), group: "income" },
         { label: "แอดมิน", value: (row) => exportMoneyValue(row.admin), group: "income" },
-        { label: "อีฟ+แนน", value: (row) => exportMoneyValue(row.staff), group: "income" },
+        { label: staffLabel, value: (row) => exportMoneyValue(row.staff), group: "income" },
         { label: "รวมยอดสุทธิ", value: (row) => exportMoneyValue(row.online) + exportMoneyValue(row.admin) + exportMoneyValue(row.staff), calculated: true },
         { label: "New", value: (row) => exportMoneyValue(row.newCustomer) }, { label: "Old", value: (row) => exportMoneyValue(row.oldCustomer) },
         { label: "หมายเหตุ", key: "note" }
@@ -1701,7 +1737,7 @@ function exportIncomeExpenseWorkbook() {
         { label: "วันที่", value: (row) => row.date === "รวมทั้งเดือน" ? row.date : thaiDateShort(row.date), group: "date" },
         { label: "Patricia", value: (row) => exportMoneyValue(row.online), group: "income" },
         { label: "แอดมิน", value: (row) => exportMoneyValue(row.admin), group: "income" },
-        { label: "อีฟ+แนน", value: (row) => exportMoneyValue(row.staff), group: "income" },
+        { label: staffLabel, value: (row) => exportMoneyValue(row.staff), group: "income" },
         { label: "รวมยอดสุทธิ", value: (row) => exportMoneyValue(row.total), calculated: true },
         { label: "ยอดที่คิด DF", value: (row) => exportMoneyValue(row.dfBase), calculated: true },
         { label: "ค่า DF", value: (row) => exportMoneyValue(row.df), calculated: true },
@@ -2899,6 +2935,7 @@ const viewConfig = {
 };
 
 function openForm(view, id) {
+  syncStaffSalesLabels();
   const setup = viewConfig[view];
   const existing = id ? state[view].find((item) => item.id === id) : null;
   const generatedPrefixes = { serviceCatalog: "SV", courses: "C", financeIncome: "FI", financeExpenses: "EX", scbDeposits: "SCB", salesDailyInputs: "SD", staffFees: "HF", doctorDf: "DF", needleFees: "ND", followups: "FU", agents: "AG" };
@@ -3954,6 +3991,7 @@ async function deletePurchaseBill(billId) {
 }
 
 function render() {
+  syncStaffSalesLabels();
   setHeader();
   renderNav();
   if (currentView === "dashboard") contentEl.innerHTML = renderDashboard();
@@ -4113,6 +4151,14 @@ contentEl.addEventListener("change", (event) => {
   }
   if (event.target.dataset.action === "incomeExpenseMonth") {
     incomeExpenseMonth = event.target.value || todayIso.slice(0, 7);
+    render();
+  }
+  if (event.target.dataset.action === "staffSalesLabel") {
+    state.appSettings = {
+      ...(state.appSettings || {}),
+      staffSalesLabel: String(event.target.value || "").trim().replace(/\s+/g, " ") || "อีฟ+แนน"
+    };
+    saveState();
     render();
   }
 });
