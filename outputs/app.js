@@ -351,13 +351,33 @@ function initials(name) {
 }
 
 function personNameKey(name) {
-  return String(name || "").trim().replace(/\s+/g, " ").toLowerCase();
+  return String(name || "")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, "")
+    .trim()
+    .toLowerCase();
 }
 
 function duplicatePatientByName(name, ignoreId = "") {
   const key = personNameKey(name);
   if (!key) return null;
-  return state.patients.find((patient) => patient.id !== ignoreId && personNameKey(patient.name) === key) || null;
+  const patientDuplicate = state.patients.find((patient) => patient.id !== ignoreId && personNameKey(patient.name) === key);
+  if (patientDuplicate) return { id: patientDuplicate.id, name: patientDuplicate.name, source: "ลูกค้า" };
+  const sources = [
+    ...(state.billing || []).map((row) => ({ name: row.patient, source: "ใบเสร็จ" })),
+    ...(state.courses || []).map((row) => ({ name: row.patient, source: "คอร์ส" })),
+    ...(state.appointments || []).map((row) => ({ name: row.patient, source: "นัดหมาย" })),
+    ...(state.records || []).flatMap((row) => [
+      { name: recordFullName(row), source: "เวชระเบียน" },
+      { name: row.patient, source: "เวชระเบียน" }
+    ]),
+    ...(state.financeIncome || []).map((row) => ({ name: row.patient, source: "รายรับ" })),
+    ...(state.doctorDf || []).map((row) => ({ name: row.patient, source: "DF หมอ" })),
+    ...(state.needleFees || []).map((row) => ({ name: row.patient, source: "ค่าเข็ม" })),
+    ...(state.followups || []).map((row) => ({ name: row.patient, source: "ติดตาม" })),
+    ...(state.agents || []).map((row) => ({ name: row.patient, source: "Agent" }))
+  ];
+  return sources.find((entry) => personNameKey(entry.name) === key) || null;
 }
 
 function staffSalesLabel() {
@@ -2968,18 +2988,31 @@ function openForm(view, id) {
       if (totalInput) totalInput.value = Number(picked.sessions || 1);
     };
   }
+  if (view === "patients") {
+    modalFields.oninput = (event) => {
+      if (event.target.name !== "name") return;
+      const nameInput = event.target;
+      const normalizedName = String(nameInput.value || "").trim().replace(/\s+/g, " ");
+      const sameExistingName = existing && personNameKey(normalizedName) === personNameKey(existing.name);
+      const duplicate = sameExistingName ? null : duplicatePatientByName(normalizedName, existing?.id || "");
+      nameInput.setCustomValidity(duplicate ? `มีชื่อลูกค้านี้อยู่แล้วใน${duplicate.source || "ระบบ"}` : "");
+    };
+  }
   modalSave.onclick = (event) => {
     event.preventDefault();
-    const form = new FormData(modal.querySelector("form"));
+    const activeForm = modal.querySelector("form");
+    if (activeForm && !activeForm.reportValidity()) return;
+    const form = new FormData(activeForm);
     const item = Object.fromEntries(form.entries());
     setup.fields.forEach(([key, , type]) => {
       if (type === "number") item[key] = Number(item[key]);
     });
     if (view === "patients") {
       item.name = String(item.name || "").trim().replace(/\s+/g, " ");
-      const duplicate = duplicatePatientByName(item.name, existing?.id || "");
+      const sameExistingName = existing && personNameKey(item.name) === personNameKey(existing.name);
+      const duplicate = sameExistingName ? null : duplicatePatientByName(item.name, existing?.id || "");
       if (duplicate) {
-        alert(`มีชื่อลูกค้า "${duplicate.name}" อยู่แล้ว ไม่สามารถเพิ่มซ้ำได้`);
+        alert(`มีชื่อลูกค้า "${duplicate.name}" อยู่แล้วใน${duplicate.source || "ระบบ"} ไม่สามารถเพิ่มซ้ำได้`);
         modalFields.querySelector('[name="name"]')?.focus();
         return;
       }
