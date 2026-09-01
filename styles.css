@@ -3848,6 +3848,64 @@ tr:last-child td {
   resize: vertical;
 }
 
+.patient-name-suggestions {
+  display: grid;
+  gap: 6px;
+  border: 1px solid #8ec7ff;
+  border-radius: 8px;
+  padding: 8px;
+  background: linear-gradient(135deg, #eef8ff, #ffffff);
+  box-shadow: 0 10px 24px rgba(14, 116, 205, 0.12);
+}
+
+.patient-name-suggestions[hidden] {
+  display: none;
+}
+
+.patient-name-suggestion-title {
+  color: #0f57b8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.patient-name-suggestion {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+  border: 1px solid #c7e3ff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+.patient-name-suggestion strong {
+  color: #0d2a52;
+  font-size: 14px;
+}
+
+.patient-name-suggestion span {
+  grid-column: 1 / -1;
+  color: #5b6f8c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.patient-name-suggestion em {
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #ffe5e8;
+  color: #e11d48;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.patient-name-suggestion.is-exact {
+  border-color: #ff9aaa;
+  background: #fff7f8;
+}
+
 dialog {
   border: 0;
   border-radius: 8px;

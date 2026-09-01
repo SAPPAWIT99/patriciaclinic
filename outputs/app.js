@@ -380,6 +380,58 @@ function duplicatePatientByName(name, ignoreId = "") {
   return sources.find((entry) => personNameKey(entry.name) === key) || null;
 }
 
+function patientNameSuggestions(name, ignoreId = "") {
+  const key = personNameKey(name);
+  if (key.length < 2) return [];
+  const entries = [
+    ...(state.patients || []).map((row) => ({ name: row.name, id: row.id, phone: row.phone, source: "ลูกค้า" })),
+    ...(state.billing || []).map((row) => ({ name: row.patient, source: "ใบเสร็จ" })),
+    ...(state.courses || []).map((row) => ({ name: row.patient, source: "คอร์ส" })),
+    ...(state.appointments || []).map((row) => ({ name: row.patient, source: "นัดหมาย" })),
+    ...(state.records || []).flatMap((row) => [
+      { name: recordFullName(row), phone: row.phone, source: "เวชระเบียน" },
+      { name: row.patient, phone: row.phone, source: "เวชระเบียน" }
+    ]),
+    ...(state.financeIncome || []).map((row) => ({ name: row.patient, source: "รายรับ" })),
+    ...(state.doctorDf || []).map((row) => ({ name: row.patient, source: "DF หมอ" })),
+    ...(state.needleFees || []).map((row) => ({ name: row.patient, source: "ค่าเข็ม" })),
+    ...(state.followups || []).map((row) => ({ name: row.patient, source: "ติดตาม" })),
+    ...(state.agents || []).map((row) => ({ name: row.patient, source: "Agent" }))
+  ];
+  const grouped = new Map();
+  entries.forEach((entry) => {
+    const entryName = String(entry.name || "").trim().replace(/\s+/g, " ");
+    const entryKey = personNameKey(entryName);
+    if (!entryKey || (entry.id && entry.id === ignoreId)) return;
+    if (!entryKey.includes(key) && !key.includes(entryKey)) return;
+    const current = grouped.get(entryKey) || { name: entryName, id: entry.id || "", phone: entry.phone || "", sources: [] };
+    if (entry.id && !current.id) current.id = entry.id;
+    if (entry.phone && !current.phone) current.phone = entry.phone;
+    if (entry.source && !current.sources.includes(entry.source)) current.sources.push(entry.source);
+    grouped.set(entryKey, current);
+  });
+  return [...grouped.values()].slice(0, 6);
+}
+
+function renderPatientNameSuggestions(name, ignoreId = "") {
+  const rows = patientNameSuggestions(name, ignoreId);
+  if (!rows.length) return "";
+  return `
+    <div class="patient-name-suggestion-title">พบชื่อใกล้เคียงในระบบ</div>
+    ${rows.map((row) => {
+      const exact = personNameKey(row.name) === personNameKey(name);
+      const details = [row.id, row.phone, row.sources.join(", ")].filter(Boolean).join(" · ");
+      return `
+        <div class="patient-name-suggestion ${exact ? "is-exact" : ""}">
+          <strong>${escapeHtml(row.name)}</strong>
+          <span>${escapeHtml(details || "-")}</span>
+          ${exact ? "<em>ชื่อซ้ำ</em>" : ""}
+        </div>
+      `;
+    }).join("")}
+  `;
+}
+
 function staffSalesLabel() {
   return String(state.appSettings?.staffSalesLabel || "อีฟ+แนน").trim() || "อีฟ+แนน";
 }
@@ -2972,7 +3024,10 @@ function openForm(view, id) {
     const control = type === "textarea"
       ? `<textarea name="${key}"${required}>${escapeHtml(value)}</textarea>`
       : `<input name="${key}" type="${type}" value="${escapeHtml(value)}"${listAttr}${readonlyAttr}${required}>`;
-    return `<div class="field${full}"><label>${label}</label>${control}</div>`;
+    const nameSuggestions = view === "patients" && key === "name"
+      ? `<div class="patient-name-suggestions" data-role="patientNameSuggestions"></div>`
+      : "";
+    return `<div class="field${full}"><label>${label}</label>${control}${nameSuggestions}</div>`;
   }).join("")
     + (view === "appointments" ? `<datalist id="appointmentPatientOptions">${patientOptions}</datalist>` : "")
     + (view === "courses" ? `<datalist id="coursePatientOptions">${patientOptions}</datalist><datalist id="courseCatalogOptions">${courseOptions}</datalist>` : "")
@@ -2989,6 +3044,12 @@ function openForm(view, id) {
     };
   }
   if (view === "patients") {
+    const updatePatientNameSuggestions = (nameInput) => {
+      const suggestionBox = modalFields.querySelector('[data-role="patientNameSuggestions"]');
+      if (!suggestionBox) return;
+      suggestionBox.innerHTML = renderPatientNameSuggestions(nameInput.value, existing?.id || "");
+      suggestionBox.hidden = !suggestionBox.innerHTML.trim();
+    };
     modalFields.oninput = (event) => {
       if (event.target.name !== "name") return;
       const nameInput = event.target;
@@ -2996,7 +3057,10 @@ function openForm(view, id) {
       const sameExistingName = existing && personNameKey(normalizedName) === personNameKey(existing.name);
       const duplicate = sameExistingName ? null : duplicatePatientByName(normalizedName, existing?.id || "");
       nameInput.setCustomValidity(duplicate ? `มีชื่อลูกค้านี้อยู่แล้วใน${duplicate.source || "ระบบ"}` : "");
+      updatePatientNameSuggestions(nameInput);
     };
+    const nameInput = modalFields.querySelector('[name="name"]');
+    if (nameInput) updatePatientNameSuggestions(nameInput);
   }
   modalSave.onclick = (event) => {
     event.preventDefault();
