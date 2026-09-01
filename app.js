@@ -374,7 +374,14 @@ function syncStaffSalesLabels() {
   const staffField = setup.fields.find(([key]) => key === "staff");
   if (staffField) staffField[1] = `ยอด${label}`;
   const staffColumn = setup.columns.find((column) => column.key === "staff");
-  if (staffColumn) staffColumn.label = label;
+  if (staffColumn) {
+    staffColumn.label = label;
+    staffColumn.labelHtml = staffSalesHeaderInput(label);
+  }
+}
+
+function staffSalesHeaderInput(label = staffSalesLabel()) {
+  return `<label class="staff-sales-header-edit" title="แก้ชื่อช่องพนักงาน"><span>${escapeHtml(label)}</span><input data-action="staffSalesLabel" value="${escapeHtml(label)}" aria-label="ชื่อช่องพนักงาน"></label>`;
 }
 
 function setHeader() {
@@ -408,7 +415,7 @@ function emptyState() {
 
 function table(columns, rows, view) {
   if (!rows.length) return emptyState();
-  const head = columns.map((col) => `<th class="${col.calculated ? "calculated-col" : ""}">${col.label}${col.calculated ? "<span>สูตร</span>" : ""}</th>`).join("") + "<th></th>";
+  const head = columns.map((col) => `<th class="${col.calculated ? "calculated-col" : ""}">${col.labelHtml || escapeHtml(col.label)}${col.calculated ? "<span>สูตร</span>" : ""}</th>`).join("") + "<th></th>";
   const body = rows.map((row) => {
     const cells = columns.map((col) => `<td class="${col.calculated ? "calculated-col" : ""}">${col.render ? col.render(row) : escapeHtml(row[col.key])}</td>`).join("");
     const deductButton = view === "courses"
@@ -1186,7 +1193,7 @@ function ledgerMonthPicker() {
 function simpleTable(columns, rows, extraClass = "") {
   if (!rows.length) return emptyState();
   const colClass = (col) => [col.calculated ? "calculated-col" : "", col.group ? `ledger-${col.group}-col` : ""].filter(Boolean).join(" ");
-  const head = columns.map((col) => `<th class="${colClass(col)}">${col.label}${col.calculated ? "<span>สูตร</span>" : ""}</th>`).join("");
+  const head = columns.map((col) => `<th class="${colClass(col)}">${col.labelHtml || escapeHtml(col.label)}${col.calculated ? "<span>สูตร</span>" : ""}</th>`).join("");
   const body = rows.map((row) => `<tr class="${row.rowClass || ""}">${columns.map((col) => `<td class="${colClass(col)}">${col.render ? col.render(row) : escapeHtml(row[col.key] ?? "-")}</td>`).join("")}</tr>`).join("");
   return `<div class="table-wrap ${extraClass}"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
@@ -1275,16 +1282,10 @@ function renderEditableLedgerSheet(view) {
     : view === "scbDeposits"
       ? "คีย์ยอดฝากเข้า SCB แยกตามวัน แล้วหน้า สรุปยอดรายรับ - รายจ่าย จะดึงไปแสดงในคอลัมน์ฝากเข้าSCB"
     : "คีย์ข้อมูลแทนชีต Excel เดิม แก้ไขและลบได้";
-  const staffLabelEditor = view === "salesDailyInputs" ? `
-    <label class="ledger-staff-label-editor">
-      <span>ชื่อช่องพนักงาน</span>
-      <input data-action="staffSalesLabel" value="${escapeHtml(currentStaffLabel)}" placeholder="เช่น อีฟ+แนน">
-    </label>` : "";
   return `
     <div class="ledger-sheet-head">
       <div><h3>${setup.addLabel.replace("เพิ่ม", "")}</h3><p>${helpText}</p></div>
       <div class="ledger-head-actions">
-        ${staffLabelEditor}
         <button data-action="add" data-view="${view}">${icons.plus}${setup.addLabel}</button>
       </div>
     </div>
@@ -1394,7 +1395,7 @@ function renderMonthlySalesSheet() {
   const staffLabel = staffSalesLabel();
   const columns = [
     { label: "วันที่", key: "date" }, { label: "Patricia", key: "online", render: (row) => money(row.online) }, { label: "แอดมิน", key: "admin", render: (row) => money(row.admin) },
-    { label: staffLabel, key: "staff", render: (row) => money(row.staff) }, { label: "รวมยอดสุทธิ", key: "total", calculated: true, render: (row) => money(row.total) },
+    { label: staffLabel, labelHtml: staffSalesHeaderInput(staffLabel), key: "staff", render: (row) => money(row.staff) }, { label: "รวมยอดสุทธิ", key: "total", calculated: true, render: (row) => money(row.total) },
     { label: "ยอดที่คิด DF", key: "dfBase", calculated: true, render: (row) => money(row.dfBase) }, { label: "ค่า DF", key: "df", calculated: true, render: (row) => money(row.df) },
     { label: "ค่าคอม Agent", key: "agent", calculated: true, render: (row) => money(row.agent) }, { label: "ยอดไม่คิด DF", key: "nonDf", calculated: true, render: (row) => money(row.nonDf) },
     { label: "ยอดหลังหัก DF", key: "afterDf", calculated: true, render: (row) => money(row.afterDf) }, { label: "ยอดสะสมหลังหัก DF", key: "cumulativeAfterDf", calculated: true, render: (row) => money(row.cumulativeAfterDf) },
@@ -4094,6 +4095,15 @@ contentEl.addEventListener("click", (event) => {
 });
 
 contentEl.addEventListener("input", (event) => {
+  if (event.target.dataset.action === "staffSalesLabel") {
+    state.appSettings = {
+      ...(state.appSettings || {}),
+      staffSalesLabel: String(event.target.value || "").trim().replace(/\s+/g, " ") || "อีฟ+แนน"
+    };
+    syncStaffSalesLabels();
+    saveState();
+    return;
+  }
   if (event.target.dataset.action === "catalogSearch") {
     searchTerm = event.target.value.trim();
     render();
@@ -4151,14 +4161,6 @@ contentEl.addEventListener("change", (event) => {
   }
   if (event.target.dataset.action === "incomeExpenseMonth") {
     incomeExpenseMonth = event.target.value || todayIso.slice(0, 7);
-    render();
-  }
-  if (event.target.dataset.action === "staffSalesLabel") {
-    state.appSettings = {
-      ...(state.appSettings || {}),
-      staffSalesLabel: String(event.target.value || "").trim().replace(/\s+/g, " ") || "อีฟ+แนน"
-    };
-    saveState();
     render();
   }
 });

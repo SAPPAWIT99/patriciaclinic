@@ -887,31 +887,6 @@ h1 {
   font-weight: 1000;
 }
 
-.ledger-staff-label-editor {
-  min-width: 210px;
-  display: grid;
-  gap: 5px;
-  text-align: left;
-}
-
-.ledger-staff-label-editor span {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.ledger-staff-label-editor input {
-  width: 100%;
-  min-height: 38px;
-  border: 1px solid rgba(147, 197, 253, 0.82);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #0b2142;
-  font: inherit;
-  font-weight: 900;
-  padding: 0 11px;
-}
-
 .ledger-export-button {
   min-width: 150px;
   justify-content: center;
@@ -919,6 +894,32 @@ h1 {
   background: linear-gradient(135deg, #0c4aaa, #23b7ef);
   box-shadow: 0 14px 28px rgba(14, 87, 194, 0.2);
   white-space: nowrap;
+}
+
+.staff-sales-header-edit {
+  display: grid;
+  gap: 4px;
+  min-width: 86px;
+}
+
+.staff-sales-header-edit span {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 1000;
+}
+
+.staff-sales-header-edit input {
+  width: 100%;
+  min-height: 28px;
+  border: 1px solid rgba(37, 99, 235, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #0b2142;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 1000;
+  padding: 0 7px;
+  text-align: center;
 }
 
 .income-expense-tabs {
