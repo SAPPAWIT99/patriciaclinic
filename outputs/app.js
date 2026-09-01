@@ -1442,6 +1442,171 @@ function exportWorkbookHtml(sheets) {
 </html>`;
 }
 
+function xmlEscape(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;"
+  })[char]);
+}
+
+function excelColumnName(index) {
+  let name = "";
+  let value = index;
+  while (value > 0) {
+    const modulo = (value - 1) % 26;
+    name = String.fromCharCode(65 + modulo) + name;
+    value = Math.floor((value - modulo) / 26);
+  }
+  return name;
+}
+
+function xlsxCellXml(address, value, style = 0) {
+  const styleAttr = style ? ` s="${style}"` : "";
+  if (typeof value === "number" && Number.isFinite(value)) return `<c r="${address}"${styleAttr}><v>${value}</v></c>`;
+  return `<c r="${address}" t="inlineStr"${styleAttr}><is><t>${xmlEscape(value)}</t></is></c>`;
+}
+
+function xlsxStyleIndex(column, row) {
+  if (row?.rowClass === "ledger-total-row") return 1;
+  if (column.calculated || column.group === "counter") return 5;
+  if (column.group === "date") return 2;
+  if (column.group === "income") return 3;
+  if (column.group === "expense") return 4;
+  if (column.group === "deposit") return 6;
+  if (column.group === "note") return 7;
+  return 0;
+}
+
+function xlsxRowsForSheet(sheet) {
+  const rows = sheet.rows.length ? sheet.rows : [{ empty: "ไม่มีข้อมูล" }];
+  const columns = sheet.rows.length ? sheet.columns : [{ label: "ข้อมูล", value: (row) => row.empty }];
+  const header = `<row r="1">${columns.map((column, index) => xlsxCellXml(`${excelColumnName(index + 1)}1`, column.label, 1)).join("")}</row>`;
+  const body = rows.map((row, rowIndex) => {
+    const rowNumber = rowIndex + 2;
+    const cells = columns.map((column, columnIndex) => {
+      const value = column.value ? column.value(row) : row[column.key];
+      return xlsxCellXml(`${excelColumnName(columnIndex + 1)}${rowNumber}`, value ?? "", xlsxStyleIndex(column, row));
+    }).join("");
+    return `<row r="${rowNumber}">${cells}</row>`;
+  }).join("");
+  return { rowsXml: header + body, columnCount: columns.length, rowCount: rows.length + 1 };
+}
+
+function xlsxWorksheetXml(sheet) {
+  const { rowsXml, columnCount, rowCount } = xlsxRowsForSheet(sheet);
+  const lastCell = `${excelColumnName(Math.max(columnCount, 1))}${Math.max(rowCount, 1)}`;
+  const cols = Array.from({ length: columnCount }, (_, index) => `<col min="${index + 1}" max="${index + 1}" width="${index === 2 ? 34 : 18}" customWidth="1"/>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:${lastCell}"/><cols>${cols}</cols><sheetData>${rowsXml}</sheetData></worksheet>`;
+}
+
+function xlsxWorkbookXml(sheets) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((sheet, index) => `<sheet name="${xmlEscape(excelSheetName(sheet.name))}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("")}</sheets></workbook>`;
+}
+
+function xlsxWorkbookRelsXml(sheets) {
+  const sheetRels = sheets.map((_, index) => `<Relationship Id="rId${index + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${index + 1}.xml"/>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetRels}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+}
+
+function xlsxContentTypesXml(sheets) {
+  const sheetTypes = sheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheetTypes}</Types>`;
+}
+
+function xlsxRootRelsXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+}
+
+function xlsxStylesXml() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Tahoma"/></font><font><b/><sz val="10"/><name val="Tahoma"/></font></fonts><fills count="9"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDEBFF"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFBFDBFE"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDCFCE7"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFEE2E2"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDEBFF"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF3D1E1"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFEF08A"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left style="thin"/><right style="thin"/><top style="thin"/><bottom style="thin"/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="8"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyBorder="1"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="5" borderId="0" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="6" borderId="0" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="7" borderId="0" xfId="0" applyFill="1" applyBorder="1"/><xf numFmtId="0" fontId="0" fillId="8" borderId="0" xfId="0" applyFill="1" applyBorder="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+}
+
+function crc32(bytes) {
+  if (!crc32.table) {
+    crc32.table = Array.from({ length: 256 }, (_, index) => {
+      let crc = index;
+      for (let bit = 0; bit < 8; bit += 1) crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+      return crc >>> 0;
+    });
+  }
+  let crc = 0xffffffff;
+  bytes.forEach((byte) => { crc = crc32.table[(crc ^ byte) & 0xff] ^ (crc >>> 8); });
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function writeZipNumber(target, offset, value, bytes) {
+  for (let index = 0; index < bytes; index += 1) target[offset + index] = (value >>> (index * 8)) & 0xff;
+}
+
+function zipDateTime() {
+  const now = new Date();
+  return {
+    time: (now.getHours() << 11) | (now.getMinutes() << 5) | Math.floor(now.getSeconds() / 2),
+    date: ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()
+  };
+}
+
+function zipStored(files) {
+  const encoder = new TextEncoder();
+  const records = [];
+  const centralRecords = [];
+  let offset = 0;
+  const { time, date } = zipDateTime();
+  files.forEach(([path, content]) => {
+    const nameBytes = encoder.encode(path);
+    const dataBytes = encoder.encode(content);
+    const crc = crc32(dataBytes);
+    const local = new Uint8Array(30 + nameBytes.length + dataBytes.length);
+    writeZipNumber(local, 0, 0x04034b50, 4);
+    writeZipNumber(local, 4, 20, 2);
+    writeZipNumber(local, 6, 0x0800, 2);
+    writeZipNumber(local, 10, time, 2);
+    writeZipNumber(local, 12, date, 2);
+    writeZipNumber(local, 14, crc, 4);
+    writeZipNumber(local, 18, dataBytes.length, 4);
+    writeZipNumber(local, 22, dataBytes.length, 4);
+    writeZipNumber(local, 26, nameBytes.length, 2);
+    local.set(nameBytes, 30);
+    local.set(dataBytes, 30 + nameBytes.length);
+    records.push(local);
+    const central = new Uint8Array(46 + nameBytes.length);
+    writeZipNumber(central, 0, 0x02014b50, 4);
+    writeZipNumber(central, 4, 20, 2);
+    writeZipNumber(central, 6, 20, 2);
+    writeZipNumber(central, 8, 0x0800, 2);
+    writeZipNumber(central, 12, time, 2);
+    writeZipNumber(central, 14, date, 2);
+    writeZipNumber(central, 16, crc, 4);
+    writeZipNumber(central, 20, dataBytes.length, 4);
+    writeZipNumber(central, 24, dataBytes.length, 4);
+    writeZipNumber(central, 28, nameBytes.length, 2);
+    writeZipNumber(central, 42, offset, 4);
+    central.set(nameBytes, 46);
+    centralRecords.push(central);
+    offset += local.length;
+  });
+  const centralOffset = offset;
+  const centralSize = centralRecords.reduce((sum, item) => sum + item.length, 0);
+  const end = new Uint8Array(22);
+  writeZipNumber(end, 0, 0x06054b50, 4);
+  writeZipNumber(end, 8, files.length, 2);
+  writeZipNumber(end, 10, files.length, 2);
+  writeZipNumber(end, 12, centralSize, 4);
+  writeZipNumber(end, 16, centralOffset, 4);
+  return new Blob([...records, ...centralRecords, end], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+
+function buildXlsxWorkbook(sheets) {
+  const files = [
+    ["[Content_Types].xml", xlsxContentTypesXml(sheets)],
+    ["_rels/.rels", xlsxRootRelsXml()],
+    ["xl/workbook.xml", xlsxWorkbookXml(sheets)],
+    ["xl/_rels/workbook.xml.rels", xlsxWorkbookRelsXml(sheets)],
+    ["xl/styles.xml", xlsxStylesXml()],
+    ...sheets.map((sheet, index) => [`xl/worksheets/sheet${index + 1}.xml`, xlsxWorksheetXml(sheet)])
+  ];
+  return zipStored(files);
+}
+
 function downloadFile(blob, filename) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -1602,8 +1767,7 @@ function exportIncomeExpenseWorkbook() {
       ]
     }
   ];
-  const blob = new Blob(["\ufeff", exportWorkbookHtml(sheets)], { type: "application/vnd.ms-excel;charset=utf-8" });
-  downloadFile(blob, `patricia-income-expense-${incomeExpenseMonth}.xls`);
+  downloadFile(buildXlsxWorkbook(sheets), `patricia-income-expense-${incomeExpenseMonth}.xlsx`);
 }
 
 function salesAnalysisYears() {
