@@ -205,6 +205,31 @@ function normalizeState(data = {}) {
       giftValue: Number(course.giftValue ?? course.freebieValue ?? 0)
     }))
     : [];
+  next.billing = Array.isArray(next.billing)
+    ? next.billing.map((bill) => {
+      if (!bill.clearedWithoutIncome && !bill.clearedAmountWithoutIncome) return bill;
+      const clearedAmount = Number(bill.clearedAmountWithoutIncome || bill.amount || 0);
+      const paidAmount = Number(bill.paidAmount || 0);
+      const actualPaid = Math.max(paidAmount - clearedAmount, 0);
+      const nextAmount = Math.max(Number(bill.amount || 0) - clearedAmount, actualPaid);
+      if (nextAmount <= 0 && actualPaid <= 0) return null;
+      const {
+        clearedAmountWithoutIncome,
+        clearedWithoutIncome,
+        clearedDate,
+        clearedNote,
+        ...cleanBill
+      } = bill;
+      return {
+        ...cleanBill,
+        amount: nextAmount,
+        paidAmount: actualPaid,
+        paymentMethod: cleanBill.paymentMethod === "เคลียร์ยอด" ? "" : cleanBill.paymentMethod,
+        paidDate: actualPaid > 0 ? cleanBill.paidDate : "",
+        status: actualPaid >= nextAmount ? "ชำระแล้ว" : "รอชำระ"
+      };
+    }).filter(Boolean)
+    : [];
   return next;
 }
 
@@ -843,7 +868,7 @@ function renderDailyReport() {
   const records = state.records.filter((record) => record.date === reportDate);
   const appointments = state.appointments.filter((appointment) => appointment.date === reportDate);
   const usages = courseUsageRowsForDate(reportDate);
-  const incomeBills = bills.filter((bill) => !bill.clearedWithoutIncome);
+  const incomeBills = bills;
   const paidTotal = bills.reduce((sum, bill) => sum + billActualPaidAmount(bill), 0);
   const grossTotal = incomeBills.reduce((sum, bill) => sum + Number(bill.subtotal || bill.amount || 0), 0);
   const discountTotal = incomeBills.reduce((sum, bill) => sum + Number(bill.discount || 0), 0);
@@ -1124,6 +1149,14 @@ function sumBills(rows) {
   return rows.reduce((sum, item) => sum + Number(item.amount || 0), 0);
 }
 
+function sumActualPaidBills(rows) {
+  return rows.reduce((sum, item) => sum + billActualPaidAmount(item), 0);
+}
+
+function sumOutstandingBills(rows) {
+  return rows.reduce((sum, item) => sum + billOutstandingAmount(item), 0);
+}
+
 function billDate(item) {
   return new Date(`${item.date}T00:00:00`);
 }
@@ -1139,17 +1172,17 @@ function renderFinanceSummary() {
   const monthNames = Array.from({ length: 12 }, (_, index) => {
     const month = String(index + 1).padStart(2, "0");
     const key = `${thisYear}-${month}`;
-    const amount = sumBills(paid.filter((item) => item.date?.slice(0, 7) === key));
+    const amount = sumActualPaidBills(paid.filter((item) => item.date?.slice(0, 7) === key));
     return { key, label: new Date(`${key}-01T00:00:00`).toLocaleDateString("th-TH", { month: "short" }), amount };
   });
   const latest = [...state.billing].sort((a, b) => billDate(b) - billDate(a)).slice(0, 8);
 
   return `
     <section class="grid stats">
-      ${stat("ยอดวันนี้", money(sumBills(daily)), `${daily.length} ใบเสร็จที่ชำระแล้ว`)}
-      ${stat("ยอดเดือนนี้", money(sumBills(monthly)), `${monthly.length} รายการในเดือนนี้`)}
-      ${stat("ยอดปีนี้", money(sumBills(yearly)), `${yearly.length} รายการในปีนี้`)}
-      ${stat("ยอดรอชำระ", money(sumBills(unpaid)), `${unpaid.length} รายการต้องติดตาม`)}
+      ${stat("ยอดวันนี้", money(sumActualPaidBills(daily)), `${daily.length} ใบเสร็จที่ชำระแล้ว`)}
+      ${stat("ยอดเดือนนี้", money(sumActualPaidBills(monthly)), `${monthly.length} รายการในเดือนนี้`)}
+      ${stat("ยอดปีนี้", money(sumActualPaidBills(yearly)), `${yearly.length} รายการในปีนี้`)}
+      ${stat("ยอดรอชำระ", money(sumOutstandingBills(unpaid)), `${unpaid.length} รายการต้องติดตาม`)}
     </section>
     <section class="grid two-col" style="margin-top:16px">
       <div class="panel">
@@ -1162,7 +1195,7 @@ function renderFinanceSummary() {
       <div class="panel">
         <div class="panel-head"><h2>ภาพรวมการเก็บเงิน</h2></div>
         <div class="summary-stack">
-          <article><span>รับชำระแล้วทั้งหมด</span><strong>${money(sumBills(paid))}</strong></article>
+          <article><span>รับชำระแล้วทั้งหมด</span><strong>${money(sumActualPaidBills(paid))}</strong></article>
           <article><span>จำนวนใบเสร็จทั้งหมด</span><strong>${state.billing.length}</strong></article>
           <article><span>อัตราชำระสำเร็จ</span><strong>${state.billing.length ? Math.round((paid.length / state.billing.length) * 100) : 0}%</strong></article>
         </div>
@@ -1180,7 +1213,7 @@ function paymentAmountForMethod(bill, method) {
 }
 
 function incomeRowsFromBills() {
-  return [...state.billing].filter((bill) => !bill.clearedWithoutIncome).sort((a, b) => billDate(b) - billDate(a)).map((bill) => {
+  return [...state.billing].filter((bill) => billActualPaidAmount(bill) > 0).sort((a, b) => billDate(b) - billDate(a)).map((bill) => {
     const paid = billActualPaidAmount(bill);
     return {
       id: bill.id,
@@ -1866,7 +1899,6 @@ function isNonServiceSalesItem(name) {
 
 function billIsSalesSource(bill) {
   const itemText = String(bill.item || "");
-  if (bill.clearedWithoutIncome) return false;
   if (bill.importedFrom === "course-balance-excel") return false;
   return !isNonServiceSalesItem(itemText);
 }
@@ -2132,7 +2164,6 @@ function billOutstandingAmount(bill) {
 }
 
 function billActualPaidAmount(bill) {
-  if (bill.clearedWithoutIncome) return 0;
   return Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
 }
 
@@ -2832,7 +2863,7 @@ const viewConfig = {
       { label: "เลขใบเสร็จ", key: "id" }, { label: "วันที่", key: "date" }, { label: "คนไข้", key: "patient" },
       { label: "รายการ", key: "item" }, { label: "ยอดเงิน", key: "amount", render: (row) => `<span class="money">${money(row.amount)}</span>` },
       { label: "ส่วนลด", key: "discount", render: (row) => money(row.discount || 0) },
-      { label: "ชำระแล้ว", key: "paidAmount", render: (row) => row.clearedWithoutIncome ? `${money(0)}<div class="muted">เคลียร์ยอด</div>` : money(billActualPaidAmount(row)) },
+      { label: "ชำระแล้ว", key: "paidAmount", render: (row) => money(billActualPaidAmount(row)) },
       { label: "ช่องทาง", key: "paymentMethod", render: (row) => escapeHtml(row.paymentMethod || "-") },
       { label: "สถานะ", key: "status", render: (row) => badge(row.status) }
     ]
@@ -3844,21 +3875,25 @@ function openPayOutstandingBill(billId) {
   modal.showModal();
 }
 
-function clearOutstandingBills(bills, clearDate, note) {
+function clearOutstandingBills(bills, clearAmount) {
+  let remainingClear = Math.max(0, Number(clearAmount || 0));
   const billIds = new Set(bills.map((bill) => bill.id));
   state.billing = state.billing.map((bill) => {
-    if (!billIds.has(bill.id)) return bill;
+    if (!billIds.has(bill.id) || remainingClear <= 0) return bill;
+    const due = billOutstandingAmount(bill);
+    const clearNow = Math.min(due, remainingClear);
+    remainingClear -= clearNow;
+    const paid = Number(bill.paidAmount || 0);
+    const nextAmount = Math.max(Number(bill.amount || 0) - clearNow, paid);
+    if (nextAmount <= 0 && paid <= 0) return null;
     return {
       ...bill,
-      paidAmount: Number(bill.amount || 0),
-      paymentMethod: "เคลียร์ยอด",
-      paidDate: clearDate,
-      clearedDate: clearDate,
-      clearedNote: note,
-      clearedWithoutIncome: true,
-      status: "เคลียร์ยอด"
+      amount: nextAmount,
+      subtotal: Math.min(Number(bill.subtotal || nextAmount), nextAmount),
+      discount: Math.min(Number(bill.discount || 0), Math.max(Number(bill.subtotal || nextAmount) - nextAmount, 0)),
+      status: paid >= nextAmount ? "ชำระแล้ว" : "รอชำระ"
     };
-  });
+  }).filter(Boolean);
   saveState();
   render();
 }
@@ -3887,15 +3922,11 @@ function openClearOutstandingBill(billId) {
         <b>${money(totalDue)}</b>
       </div>
       <div class="settle-warning">
-        ระบบจะปิดยอดค้างรายการนี้ โดยไม่เพิ่มยอดรายรับ ไม่ออกใบเสร็จรับเงิน และไม่ไปรวมยอดขาย
+        ระบบจะลดยอดค้างตามจำนวนที่กรอกทันที โดยไม่เพิ่มยอดรายรับ ไม่ออกใบเสร็จรับเงิน และไม่เก็บประวัติการเคลียร์
       </div>
       <div class="field">
-        <label>วันที่เคลียร์ยอด</label>
-        <input name="clearDate" type="date" value="${todayIso}" required>
-      </div>
-      <div class="field full">
-        <label>หมายเหตุ</label>
-        <textarea name="note" required>เคลียร์ยอดโดยไม่รับเงินเข้าร้าน</textarea>
+        <label>ยอดที่ต้องการเคลียร์</label>
+        <input name="clearAmount" type="number" min="0" max="${totalDue}" value="${totalDue}" required>
       </div>
     </div>
   `;
@@ -3904,7 +3935,12 @@ function openClearOutstandingBill(billId) {
     const formElement = modal.querySelector("form");
     if (formElement && !formElement.reportValidity()) return;
     const form = new FormData(formElement);
-    clearOutstandingBills([bill], String(form.get("clearDate") || todayIso), String(form.get("note") || "").trim());
+    const clearAmount = Math.max(0, Math.min(Number(form.get("clearAmount") || 0), totalDue));
+    if (clearAmount <= 0) {
+      alert("กรุณาใส่ยอดที่ต้องการเคลียร์");
+      return;
+    }
+    clearOutstandingBills([bill], clearAmount);
     modal.close();
   };
   modal.showModal();
@@ -3938,15 +3974,11 @@ function openClearOutstandingCourse(courseId) {
         ${bills.map((bill) => `<div><span>${escapeHtml(bill.id)} · ${escapeHtml(bill.item || "-")}</span><strong>${money(billOutstandingAmount(bill))}</strong></div>`).join("")}
       </div>
       <div class="settle-warning">
-        ระบบจะปิดยอดค้างของคอร์สนี้ โดยไม่เพิ่มยอดรายรับ ไม่ออกใบเสร็จรับเงิน และไม่ไปรวมยอดขาย
+        ระบบจะลดยอดค้างตามจำนวนที่กรอกทันที โดยไม่เพิ่มยอดรายรับ ไม่ออกใบเสร็จรับเงิน และไม่เก็บประวัติการเคลียร์
       </div>
       <div class="field">
-        <label>วันที่เคลียร์ยอด</label>
-        <input name="clearDate" type="date" value="${todayIso}" required>
-      </div>
-      <div class="field full">
-        <label>หมายเหตุ</label>
-        <textarea name="note" required>เคลียร์ยอดโดยไม่รับเงินเข้าร้าน</textarea>
+        <label>ยอดที่ต้องการเคลียร์</label>
+        <input name="clearAmount" type="number" min="0" max="${totalDue}" value="${totalDue}" required>
       </div>
     </div>
   `;
@@ -3955,7 +3987,12 @@ function openClearOutstandingCourse(courseId) {
     const formElement = modal.querySelector("form");
     if (formElement && !formElement.reportValidity()) return;
     const form = new FormData(formElement);
-    clearOutstandingBills(bills, String(form.get("clearDate") || todayIso), String(form.get("note") || "").trim());
+    const clearAmount = Math.max(0, Math.min(Number(form.get("clearAmount") || 0), totalDue));
+    if (clearAmount <= 0) {
+      alert("กรุณาใส่ยอดที่ต้องการเคลียร์");
+      return;
+    }
+    clearOutstandingBills(bills, clearAmount);
     patientDetailTab = "courses";
     modal.close();
   };
