@@ -597,7 +597,7 @@ function renderSalesBarChart(bills, period, customLabels = null) {
   const totals = labels.map((label) => {
     const amount = bills
       .filter((item) => billChartKey(item.date, period) === label.key)
-      .reduce((sum, item) => sum + Number(item.paidAmount || item.amount || 0), 0);
+      .reduce((sum, item) => sum + billActualPaidAmount(item), 0);
     return { ...label, amount };
   });
   const target = period === "month" ? monthlyTarget : 0;
@@ -662,10 +662,10 @@ function renderMonthlyTrendChart(months) {
 }
 
 function paymentBreakdown(bills) {
-  const paid = bills.filter((item) => item.status === "ชำระแล้ว" || Number(item.paidAmount || 0) > 0);
+  const paid = bills.filter((item) => billActualPaidAmount(item) > 0);
   const totals = paid.reduce((acc, item) => {
     const method = item.paymentMethod || "ไม่ระบุ";
-    acc[method] = (acc[method] || 0) + Number(item.paidAmount || item.amount || 0);
+    acc[method] = (acc[method] || 0) + billActualPaidAmount(item);
     return acc;
   }, {});
   const total = Object.values(totals).reduce((sum, value) => sum + value, 0);
@@ -720,9 +720,9 @@ function courseUsageRowsForDate(dateString) {
 
 function renderTodayOwnerSummary() {
   const todayBills = state.billing.filter((item) => item.date === todayIso);
-  const paidBills = todayBills.filter((item) => item.status === "ชำระแล้ว" || Number(item.paidAmount || 0) > 0);
-  const todayIncome = paidBills.reduce((sum, item) => sum + Number(item.paidAmount || item.amount || 0), 0);
-  const todayPending = todayBills.reduce((sum, item) => sum + Math.max(Number(item.amount || 0) - Number(item.paidAmount || 0), 0), 0);
+  const paidBills = todayBills.filter((item) => billActualPaidAmount(item) > 0);
+  const todayIncome = paidBills.reduce((sum, item) => sum + billActualPaidAmount(item), 0);
+  const todayPending = todayBills.reduce((sum, item) => sum + billOutstandingAmount(item), 0);
   const todayRecords = state.records.filter((item) => item.date === todayIso);
   const serviceCount = new Set([
     ...todayRecords.map((item) => item.patient || recordFullName(item)),
@@ -782,7 +782,7 @@ function renderTodayOwnerSummary() {
         </article>
         <article>
           <div class="mini-head"><h3>สรุปยอดเงิน</h3><span>${todayBills.length} ใบเสร็จ</span></div>
-          ${latestBills.length ? latestBills.map((bill) => `<p><strong>${escapeHtml(bill.patient)}</strong><span>${money(Number(bill.paidAmount || bill.amount || 0))} · ${escapeHtml(bill.paymentMethod || "ไม่ระบุ")}</span></p>`).join("") : "<p class='muted'>ยังไม่มีรายการเงินวันนี้</p>"}
+          ${latestBills.length ? latestBills.map((bill) => `<p><strong>${escapeHtml(bill.patient)}</strong><span>${money(billActualPaidAmount(bill))} · ${escapeHtml(bill.paymentMethod || "ไม่ระบุ")}</span></p>`).join("") : "<p class='muted'>ยังไม่มีรายการเงินวันนี้</p>"}
         </article>
       </div>
     </section>`;
@@ -843,11 +843,12 @@ function renderDailyReport() {
   const records = state.records.filter((record) => record.date === reportDate);
   const appointments = state.appointments.filter((appointment) => appointment.date === reportDate);
   const usages = courseUsageRowsForDate(reportDate);
-  const paidTotal = bills.reduce((sum, bill) => sum + Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0), 0);
-  const grossTotal = bills.reduce((sum, bill) => sum + Number(bill.subtotal || bill.amount || 0), 0);
-  const discountTotal = bills.reduce((sum, bill) => sum + Number(bill.discount || 0), 0);
-  const netTotal = bills.reduce((sum, bill) => sum + Number(bill.amount || 0), 0);
-  const pendingTotal = bills.reduce((sum, bill) => sum + Math.max(Number(bill.amount || 0) - Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0), 0), 0);
+  const incomeBills = bills.filter((bill) => !bill.clearedWithoutIncome);
+  const paidTotal = bills.reduce((sum, bill) => sum + billActualPaidAmount(bill), 0);
+  const grossTotal = incomeBills.reduce((sum, bill) => sum + Number(bill.subtotal || bill.amount || 0), 0);
+  const discountTotal = incomeBills.reduce((sum, bill) => sum + Number(bill.discount || 0), 0);
+  const netTotal = incomeBills.reduce((sum, bill) => sum + Number(bill.amount || 0), 0);
+  const pendingTotal = bills.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
   const serviceRows = dailyServiceRows(bills);
   const customerCount = new Set([
     ...bills.map((bill) => bill.patient),
@@ -860,14 +861,14 @@ function renderDailyReport() {
     const seller = bill.seller || "ไม่ระบุ";
     const current = map.get(seller) || { seller, count: 0, amount: 0 };
     current.count += 1;
-    current.amount += Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
+    current.amount += billActualPaidAmount(bill);
     map.set(seller, current);
     return map;
   }, new Map()).values()].sort((a, b) => b.amount - a.amount);
 
   const billRows = bills.map((bill, index) => {
-    const paid = Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
-    const due = Math.max(Number(bill.amount || 0) - paid, 0);
+    const paid = billActualPaidAmount(bill);
+    const due = billOutstandingAmount(bill);
     return `<tr>
       <td>${index + 1}</td>
       <td><strong>${escapeHtml(bill.id || "-")}</strong><span>${escapeHtml(bill.patient || "-")}</span></td>
@@ -1017,10 +1018,10 @@ function renderDashboard() {
   const todayApps = state.appointments.filter((item) => item.date === todayIso).length;
   const periodBills = filterBillsByPaymentMethod(billsForPeriod(dashboardPeriod));
   const weeklyBills = filterBillsByPaymentMethod(billsForLastDays(weeklySalesDays));
-  const paidPeriodBills = periodBills.filter((item) => item.status === "ชำระแล้ว" || Number(item.paidAmount || 0) > 0);
-  const income = paidPeriodBills.reduce((sum, item) => sum + Number(item.paidAmount || item.amount || 0), 0);
-  const pending = periodBills.reduce((sum, item) => sum + Math.max(Number(item.amount || 0) - Number(item.paidAmount || 0), 0), 0);
-  const pendingCount = periodBills.filter((item) => Math.max(Number(item.amount || 0) - Number(item.paidAmount || 0), 0) > 0).length;
+  const paidPeriodBills = periodBills.filter((item) => billActualPaidAmount(item) > 0);
+  const income = paidPeriodBills.reduce((sum, item) => sum + billActualPaidAmount(item), 0);
+  const pending = periodBills.reduce((sum, item) => sum + billOutstandingAmount(item), 0);
+  const pendingCount = periodBills.filter((item) => billOutstandingAmount(item) > 0).length;
   const lowStock = state.inventory.filter((item) => Number(item.qty) <= Number(item.reorder)).length;
   return `
     <section class="dashboard-live-hero">
@@ -1112,11 +1113,11 @@ function renderDashboard() {
 }
 
 function paidBills() {
-  return state.billing.filter((item) => item.status === "ชำระแล้ว");
+  return state.billing.filter((item) => billActualPaidAmount(item) > 0);
 }
 
 function unpaidBills() {
-  return state.billing.filter((item) => item.status !== "ชำระแล้ว");
+  return state.billing.filter((item) => billOutstandingAmount(item) > 0);
 }
 
 function sumBills(rows) {
@@ -1174,13 +1175,13 @@ function renderFinanceSummary() {
 }
 
 function paymentAmountForMethod(bill, method) {
-  const paid = Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
+  const paid = billActualPaidAmount(bill);
   return bill.paymentMethod === method ? paid : 0;
 }
 
 function incomeRowsFromBills() {
-  return [...state.billing].sort((a, b) => billDate(b) - billDate(a)).map((bill) => {
-    const paid = Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
+  return [...state.billing].filter((bill) => !bill.clearedWithoutIncome).sort((a, b) => billDate(b) - billDate(a)).map((bill) => {
+    const paid = billActualPaidAmount(bill);
     return {
       id: bill.id,
       date: bill.date,
@@ -1865,6 +1866,7 @@ function isNonServiceSalesItem(name) {
 
 function billIsSalesSource(bill) {
   const itemText = String(bill.item || "");
+  if (bill.clearedWithoutIncome) return false;
   if (bill.importedFrom === "course-balance-excel") return false;
   return !isNonServiceSalesItem(itemText);
 }
@@ -1916,7 +1918,7 @@ function salesCustomerRows(bills) {
     const count = lineItems.reduce((sum, item) => sum + item.quantity, 0) || 1;
     const current = grouped.get(patient) || { patient, visits: 0, revenue: 0 };
     current.visits += count;
-    current.revenue += Number(bill.paidAmount || bill.amount || 0);
+    current.revenue += billActualPaidAmount(bill);
     grouped.set(patient, current);
   }
   return [...grouped.values()].filter((row) => row.visits > 1).sort((a, b) => b.visits - a.visits || b.revenue - a.revenue).slice(0, 12);
@@ -2129,6 +2131,11 @@ function billOutstandingAmount(bill) {
   return Math.max(amount - paid, 0);
 }
 
+function billActualPaidAmount(bill) {
+  if (bill.clearedWithoutIncome) return 0;
+  return Number(bill.paidAmount || (bill.status === "ชำระแล้ว" ? bill.amount : 0) || 0);
+}
+
 function pendingBillsForPatient(patientName) {
   return state.billing.filter((bill) => bill.patient === patientName && billOutstandingAmount(bill) > 0);
 }
@@ -2251,6 +2258,7 @@ function renderOutstandingPaymentsTable(rows) {
           <div class="outstanding-actions">
             <button class="action-button view-action receipt-view-button" title="ดูใบเสร็จ" aria-label="ดูใบเสร็จ" data-action="viewReceipt" data-id="${escapeHtml(bill.id)}">${icons.notes}<span>ดูใบเสร็จ</span></button>
             <button class="pay-due-button" title="อัปเดตรับชำระ" aria-label="อัปเดตรับชำระ" data-action="payOutstandingBill" data-id="${escapeHtml(bill.id)}">${icons.wallet}<span>ชำระค้าง</span></button>
+            <button class="clear-due-button" title="เคลียร์ยอดโดยไม่บันทึกรายรับ" aria-label="เคลียร์ยอดโดยไม่บันทึกรายรับ" data-action="clearOutstandingBill" data-id="${escapeHtml(bill.id)}">${icons.trash}<span>เคลียร์ยอด</span></button>
           </div>
         </td>
       </tr>`;
@@ -2420,7 +2428,8 @@ function renderPatientCourses(courses, patientName) {
     const pendingClass = pendingCourseAmount > 0 ? " pending-payment" : "";
     const pendingBadge = pendingCourseAmount > 0 ? `<span class="payment-due-badge">ค้างชำระ ${money(pendingCourseAmount)}</span>` : "";
     const payPendingButton = pendingCourseAmount > 0
-      ? `<button class="pay-due-button" title="ชำระเงินที่ค้างอยู่" aria-label="ชำระเงินที่ค้างอยู่" data-action="payOutstandingCourse" data-id="${course.id}">${icons.wallet}<span>ชำระค้าง</span></button>`
+      ? `<button class="pay-due-button" title="ชำระเงินที่ค้างอยู่" aria-label="ชำระเงินที่ค้างอยู่" data-action="payOutstandingCourse" data-id="${course.id}">${icons.wallet}<span>ชำระค้าง</span></button>
+        <button class="clear-due-button" title="เคลียร์ยอดโดยไม่บันทึกรายรับ" aria-label="เคลียร์ยอดโดยไม่บันทึกรายรับ" data-action="clearOutstandingCourse" data-id="${course.id}">${icons.trash}<span>เคลียร์ยอด</span></button>`
       : "";
     return `<article class="inventory-item course-detail-item${pendingClass}">
     <div class="course-info">
@@ -2823,7 +2832,7 @@ const viewConfig = {
       { label: "เลขใบเสร็จ", key: "id" }, { label: "วันที่", key: "date" }, { label: "คนไข้", key: "patient" },
       { label: "รายการ", key: "item" }, { label: "ยอดเงิน", key: "amount", render: (row) => `<span class="money">${money(row.amount)}</span>` },
       { label: "ส่วนลด", key: "discount", render: (row) => money(row.discount || 0) },
-      { label: "ชำระแล้ว", key: "paidAmount", render: (row) => money(row.paidAmount || (row.status === "ชำระแล้ว" ? row.amount : 0)) },
+      { label: "ชำระแล้ว", key: "paidAmount", render: (row) => row.clearedWithoutIncome ? `${money(0)}<div class="muted">เคลียร์ยอด</div>` : money(billActualPaidAmount(row)) },
       { label: "ช่องทาง", key: "paymentMethod", render: (row) => escapeHtml(row.paymentMethod || "-") },
       { label: "สถานะ", key: "status", render: (row) => badge(row.status) }
     ]
@@ -3835,6 +3844,124 @@ function openPayOutstandingBill(billId) {
   modal.showModal();
 }
 
+function clearOutstandingBills(bills, clearDate, note) {
+  const billIds = new Set(bills.map((bill) => bill.id));
+  state.billing = state.billing.map((bill) => {
+    if (!billIds.has(bill.id)) return bill;
+    return {
+      ...bill,
+      paidAmount: Number(bill.amount || 0),
+      paymentMethod: "เคลียร์ยอด",
+      paidDate: clearDate,
+      clearedDate: clearDate,
+      clearedNote: note,
+      clearedWithoutIncome: true,
+      status: "เคลียร์ยอด"
+    };
+  });
+  saveState();
+  render();
+}
+
+function openClearOutstandingBill(billId) {
+  const bill = state.billing.find((item) => item.id === billId);
+  if (!bill) return;
+  const totalDue = billOutstandingAmount(bill);
+  if (totalDue <= 0) {
+    alert("ใบเสร็จนี้ไม่มีรายการค้างชำระ");
+    return;
+  }
+  setModalSize("compact");
+  modalTitle.textContent = "เคลียร์ยอดค้าง";
+  modalSave.textContent = "ยืนยันเคลียร์ยอด";
+  modalFields.onclick = null;
+  modalFields.oninput = null;
+  modalFields.innerHTML = `
+    <div class="payment-settle clear-settle">
+      <div class="settle-summary">
+        <span>ลูกค้า</span>
+        <strong>${escapeHtml(bill.patient || "-")}</strong>
+        <span>ใบเสร็จ</span>
+        <strong>${escapeHtml(bill.id || "-")}</strong>
+        <span>ยอดที่จะเคลียร์</span>
+        <b>${money(totalDue)}</b>
+      </div>
+      <div class="settle-warning">
+        ระบบจะปิดยอดค้างรายการนี้ โดยไม่เพิ่มยอดรายรับ ไม่ออกใบเสร็จรับเงิน และไม่ไปรวมยอดขาย
+      </div>
+      <div class="field">
+        <label>วันที่เคลียร์ยอด</label>
+        <input name="clearDate" type="date" value="${todayIso}" required>
+      </div>
+      <div class="field full">
+        <label>หมายเหตุ</label>
+        <textarea name="note" required>เคลียร์ยอดโดยไม่รับเงินเข้าร้าน</textarea>
+      </div>
+    </div>
+  `;
+  modalSave.onclick = (event) => {
+    event.preventDefault();
+    const formElement = modal.querySelector("form");
+    if (formElement && !formElement.reportValidity()) return;
+    const form = new FormData(formElement);
+    clearOutstandingBills([bill], String(form.get("clearDate") || todayIso), String(form.get("note") || "").trim());
+    modal.close();
+  };
+  modal.showModal();
+}
+
+function openClearOutstandingCourse(courseId) {
+  const course = state.courses.find((item) => item.id === courseId);
+  if (!course) return;
+  const bills = pendingBillsForCourse(course);
+  const totalDue = bills.reduce((sum, bill) => sum + billOutstandingAmount(bill), 0);
+  if (!bills.length || totalDue <= 0) {
+    alert("คอร์สนี้ไม่มีรายการค้างชำระ");
+    return;
+  }
+  setModalSize("compact");
+  modalTitle.textContent = "เคลียร์ยอดค้างคอร์ส";
+  modalSave.textContent = "ยืนยันเคลียร์ยอด";
+  modalFields.onclick = null;
+  modalFields.oninput = null;
+  modalFields.innerHTML = `
+    <div class="payment-settle clear-settle">
+      <div class="settle-summary">
+        <span>ลูกค้า</span>
+        <strong>${escapeHtml(course.patient)}</strong>
+        <span>คอร์ส</span>
+        <strong>${escapeHtml(course.course)}</strong>
+        <span>ยอดที่จะเคลียร์</span>
+        <b>${money(totalDue)}</b>
+      </div>
+      <div class="pending-bill-list">
+        ${bills.map((bill) => `<div><span>${escapeHtml(bill.id)} · ${escapeHtml(bill.item || "-")}</span><strong>${money(billOutstandingAmount(bill))}</strong></div>`).join("")}
+      </div>
+      <div class="settle-warning">
+        ระบบจะปิดยอดค้างของคอร์สนี้ โดยไม่เพิ่มยอดรายรับ ไม่ออกใบเสร็จรับเงิน และไม่ไปรวมยอดขาย
+      </div>
+      <div class="field">
+        <label>วันที่เคลียร์ยอด</label>
+        <input name="clearDate" type="date" value="${todayIso}" required>
+      </div>
+      <div class="field full">
+        <label>หมายเหตุ</label>
+        <textarea name="note" required>เคลียร์ยอดโดยไม่รับเงินเข้าร้าน</textarea>
+      </div>
+    </div>
+  `;
+  modalSave.onclick = (event) => {
+    event.preventDefault();
+    const formElement = modal.querySelector("form");
+    if (formElement && !formElement.reportValidity()) return;
+    const form = new FormData(formElement);
+    clearOutstandingBills(bills, String(form.get("clearDate") || todayIso), String(form.get("note") || "").trim());
+    patientDetailTab = "courses";
+    modal.close();
+  };
+  modal.showModal();
+}
+
 function renderReceipt(patient, purchased, bill) {
   const dateLabel = new Date(`${bill.date}T00:00:00`).toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "numeric" });
   const change = Math.max(Number(bill.paidAmount || 0) - Number(bill.amount || 0), 0);
@@ -4148,6 +4275,8 @@ contentEl.addEventListener("click", (event) => {
   }
   if (button.dataset.action === "payOutstandingCourse") openPayOutstandingCourse(button.dataset.id);
   if (button.dataset.action === "payOutstandingBill") openPayOutstandingBill(button.dataset.id);
+  if (button.dataset.action === "clearOutstandingCourse") openClearOutstandingCourse(button.dataset.id);
+  if (button.dataset.action === "clearOutstandingBill") openClearOutstandingBill(button.dataset.id);
   if (button.dataset.action === "viewReceipt") openReceiptFromBill(button.dataset.id);
   if (button.dataset.action === "deletePurchaseBill") deletePurchaseBill(button.dataset.id);
   if (button.dataset.action === "deduct") openDeductCourse(button.dataset.id);
