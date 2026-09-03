@@ -6832,9 +6832,25 @@ body {
 }
 
 .dashboard-calendar-grid > strong {
-  color: #5c7397;
-  font-size: 12px;
+  min-height: 28px;
+  border-radius: 8px;
+  padding: 5px 2px;
+  background: #eaf5ff;
+  color: #0b4fb3;
+  font-size: 15px;
+  font-weight: 1000;
+  line-height: 1.2;
   text-align: center;
+}
+
+.dashboard-calendar-grid > strong:first-child {
+  background: #fff0f2;
+  color: #dc2626;
+}
+
+.dashboard-calendar-grid > strong:nth-child(7) {
+  background: #eef2ff;
+  color: #1d4ed8;
 }
 
 .calendar-empty,
