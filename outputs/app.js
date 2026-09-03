@@ -76,6 +76,7 @@ const seedState = {
   importedExcelBatches: [],
   appSettings: {
     staffSalesLabel: "อีฟ+แนน",
+    dashboardMarqueeText: "ให้อีฟช่วยอัพเดทข้อมูลคอร์สของลูกค้าให้เป็นปัจจุบัน เพื่อปรับปรุงข้อมูลให้ถูกต้อง",
     dashboardNotes: {}
   },
   patients: [
@@ -144,6 +145,7 @@ let patientDetailTab = "records";
 let dashboardPeriod = "day";
 let dashboardPaymentMethod = "ทั้งหมด";
 let dashboardCalendarDate = "";
+let developerSettingsOpen = false;
 let weeklySalesDays = 7;
 let outstandingPeriod = "all";
 let salesAnalysisYear = todayIso.slice(0, 4);
@@ -464,6 +466,13 @@ function renderPatientNameSuggestions(name, ignoreId = "") {
 
 function staffSalesLabel() {
   return String(state.appSettings?.staffSalesLabel || "อีฟ+แนน").trim() || "อีฟ+แนน";
+}
+
+function dashboardMarqueeText() {
+  return String(
+    state.appSettings?.dashboardMarqueeText
+    || seedState.appSettings.dashboardMarqueeText
+  ).trim() || seedState.appSettings.dashboardMarqueeText;
 }
 
 function syncStaffSalesLabels() {
@@ -888,6 +897,19 @@ function renderDashboardCalendar() {
   `;
 }
 
+function renderDashboardDeveloperPanel() {
+  if (!developerSettingsOpen) return "";
+  return `
+    <section class="panel dashboard-dev-panel">
+      <div>
+        <strong>ตั้งค่านักพัฒนา</strong>
+        <span>แก้ข้อความวิ่งบน Dashboard</span>
+      </div>
+      <textarea data-action="dashboardMarqueeText" aria-label="ข้อความวิ่ง Dashboard">${escapeHtml(dashboardMarqueeText())}</textarea>
+    </section>
+  `;
+}
+
 function dailyBillRows(dateString) {
   return state.billing
     .filter((bill) => bill.date === dateString)
@@ -1121,13 +1143,14 @@ function renderDashboard() {
         <p>ภาพรวมคลินิกและระบบขายในหน้าจอเดียว</p>
       </div>
       <div class="dashboard-marquee" aria-label="ประกาศอัปเดตข้อมูลคอร์ส">
-        <span>${icons.users} ให้อีฟช่วยอัพเดทข้อมูลคอร์สของลูกค้าให้เป็นปัจจุบัน เพื่อปรับปรุงข้อมูลให้ถูกต้อง</span>
+        <span>${icons.users} ${escapeHtml(dashboardMarqueeText())}</span>
       </div>
       <div class="dashboard-live-actions">
         <span>${thaiDateLabel(todayIso, { weekday: "short" })}</span>
         <button data-view="queue">${icons.queue}จัดการคิว</button>
       </div>
     </section>
+    ${renderDashboardDeveloperPanel()}
     <section class="grid stats">
       ${stat("ลูกค้าทั้งหมด", state.patients.length, "+3 รายในสัปดาห์นี้")}
       ${stat("คิวที่ต้องดูแล", waiting, "อัปเดตแบบเรียลไทม์")}
@@ -4392,6 +4415,14 @@ contentEl.addEventListener("click", (event) => {
 });
 
 contentEl.addEventListener("input", (event) => {
+  if (event.target.dataset.action === "dashboardMarqueeText") {
+    state.appSettings = {
+      ...(state.appSettings || {}),
+      dashboardMarqueeText: String(event.target.value || "").trim()
+    };
+    saveState();
+    return;
+  }
   if (event.target.dataset.action === "dashboardCalendarNote") {
     const date = event.target.dataset.date || dashboardCalendarDate || todayIso;
     dashboardCalendarDate = date;
@@ -4470,6 +4501,17 @@ contentEl.addEventListener("change", (event) => {
     incomeExpenseMonth = event.target.value || todayIso.slice(0, 7);
     render();
   }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (!event.ctrlKey || !event.altKey || event.key.toLowerCase() !== "d") return;
+  event.preventDefault();
+  developerSettingsOpen = !developerSettingsOpen;
+  if (currentView !== "dashboard") currentView = "dashboard";
+  render();
+  setTimeout(() => {
+    contentEl.querySelector('[data-action="dashboardMarqueeText"]')?.focus();
+  }, 0);
 });
 
 document.querySelector("#globalSearch").addEventListener("input", (event) => {
