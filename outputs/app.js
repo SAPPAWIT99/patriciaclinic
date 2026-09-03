@@ -75,7 +75,8 @@ const seedState = {
   deletedServiceCatalogIds: ["SV-001", "SV-002", "SV-003"],
   importedExcelBatches: [],
   appSettings: {
-    staffSalesLabel: "อีฟ+แนน"
+    staffSalesLabel: "อีฟ+แนน",
+    dashboardNotes: {}
   },
   patients: [
     { id: "P-1001", name: "ปาริณา ศรีสุข", phone: "081-234-7788", age: 34, allergy: "ไม่มี", lastVisit: todayIso, tag: "ติดตามผล" },
@@ -142,6 +143,7 @@ let selectedPatientId = null;
 let patientDetailTab = "records";
 let dashboardPeriod = "day";
 let dashboardPaymentMethod = "ทั้งหมด";
+let dashboardCalendarDate = "";
 let weeklySalesDays = 7;
 let outstandingPeriod = "all";
 let salesAnalysisYear = todayIso.slice(0, 4);
@@ -184,6 +186,9 @@ function setModalSize(size = "default") {
 function normalizeState(data = {}) {
   const next = { ...structuredClone(seedState), ...data };
   next.appSettings = { ...structuredClone(seedState.appSettings), ...(data.appSettings || {}) };
+  next.appSettings.dashboardNotes = next.appSettings.dashboardNotes && typeof next.appSettings.dashboardNotes === "object"
+    ? next.appSettings.dashboardNotes
+    : {};
   ledgerDataKeys.forEach((key) => {
     next[key] = Array.isArray(next[key]) ? next[key].filter((row) => row.source !== "excel-2026-08") : [];
   });
@@ -823,6 +828,66 @@ function thaiDateLabel(dateString, options = {}) {
   });
 }
 
+function monthKeyFromDate(dateString = todayIso) {
+  return String(dateString || todayIso).slice(0, 7);
+}
+
+function dashboardCalendarNotes() {
+  state.appSettings = state.appSettings || {};
+  state.appSettings.dashboardNotes = state.appSettings.dashboardNotes || {};
+  return state.appSettings.dashboardNotes;
+}
+
+function renderDashboardCalendar() {
+  const monthKey = monthKeyFromDate(todayIso);
+  const selectedDate = dashboardCalendarDate && dashboardCalendarDate.slice(0, 7) === monthKey ? dashboardCalendarDate : todayIso;
+  dashboardCalendarDate = selectedDate;
+  const [year, month] = monthKey.split("-").map(Number);
+  const firstDay = new Date(year, month - 1, 1);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const startOffset = firstDay.getDay();
+  const notes = dashboardCalendarNotes();
+  const weekdayLabels = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+  const cells = [];
+  for (let index = 0; index < startOffset; index += 1) cells.push(`<span class="calendar-empty"></span>`);
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const date = `${monthKey}-${String(day).padStart(2, "0")}`;
+    const note = String(notes[date] || "").trim();
+    const classes = [
+      "calendar-day",
+      date === todayIso ? "today" : "",
+      date === selectedDate ? "selected" : "",
+      note ? "has-note" : ""
+    ].filter(Boolean).join(" ");
+    cells.push(`
+      <button class="${classes}" data-action="dashboardCalendarDay" data-date="${date}" title="${escapeHtml(note || thaiDateLabel(date))}">
+        <b>${day}</b>
+        ${note ? "<i></i>" : ""}
+      </button>
+    `);
+  }
+  const selectedNote = notes[selectedDate] || "";
+  return `
+    <div class="panel dashboard-calendar-panel">
+      <div class="panel-head">
+        <div>
+          <h2>${icons.calendar}ปฏิทินเดือนนี้</h2>
+          <span class="muted">${thaiDateLabel(`${monthKey}-01`, { month: "long", year: "numeric" })}</span>
+        </div>
+        <span class="period-pill">${thaiDateLabel(selectedDate, { day: "numeric", month: "short" })}</span>
+      </div>
+      <div class="dashboard-calendar-grid">
+        ${weekdayLabels.map((label) => `<strong>${label}</strong>`).join("")}
+        ${cells.join("")}
+      </div>
+      <label class="dashboard-note-field">
+        <span>โน้ตวันที่ ${thaiDateLabel(selectedDate, { day: "numeric", month: "long" })}</span>
+        <textarea data-action="dashboardCalendarNote" data-date="${selectedDate}" placeholder="ใส่โน้ตของวันนี้...">${escapeHtml(selectedNote)}</textarea>
+      </label>
+    </div>
+  `;
+}
+
 function dailyBillRows(dateString) {
   return state.billing
     .filter((bill) => bill.date === dateString)
@@ -1124,6 +1189,7 @@ function renderDashboard() {
           <article><span>สต็อกใกล้หมด</span><strong>${lowStock}</strong></article>
         </div>
       </div>
+      ${renderDashboardCalendar()}
     </section>
     <section class="grid two-col" style="margin-top:16px">
       <div class="panel">
@@ -4262,6 +4328,10 @@ contentEl.addEventListener("click", (event) => {
     dashboardPeriod = button.dataset.period;
     render();
   }
+  if (button.dataset.action === "dashboardCalendarDay") {
+    dashboardCalendarDate = button.dataset.date || todayIso;
+    render();
+  }
   if (button.dataset.action === "outstandingPeriod") {
     outstandingPeriod = button.dataset.period || "all";
     render();
@@ -4322,6 +4392,16 @@ contentEl.addEventListener("click", (event) => {
 });
 
 contentEl.addEventListener("input", (event) => {
+  if (event.target.dataset.action === "dashboardCalendarNote") {
+    const date = event.target.dataset.date || dashboardCalendarDate || todayIso;
+    dashboardCalendarDate = date;
+    const notes = dashboardCalendarNotes();
+    const note = String(event.target.value || "").trim();
+    if (note) notes[date] = note;
+    else delete notes[date];
+    saveState();
+    return;
+  }
   if (event.target.dataset.action === "staffSalesLabel") {
     state.appSettings = {
       ...(state.appSettings || {}),
